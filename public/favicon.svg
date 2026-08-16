@@ -1,1 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#818cf8"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="#0b1220"/><path d="M32 12 16 48h8l8-20 8 20h8L32 12z" fill="url(#g)"/><circle cx="32" cy="50" r="3" fill="#22d3ee"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs>
+<linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#00e5ff"/>
+<stop offset="0.55" stop-color="#a78bfa"/>
+<stop offset="1" stop-color="#ff2d78"/>
+</linearGradient>
+<linearGradient id="g2" x1="0" y1="1" x2="1" y2="0">
+<stop offset="0" stop-color="#00e5ff"/>
+<stop offset="1" stop-color="#22ff9a"/>
+</linearGradient>
+</defs>
+<rect x="2" y="2" width="60" height="60" rx="16" fill="#060b16"/>
+<rect x="2" y="2" width="60" height="60" rx="16" fill="none" stroke="url(#g1)" stroke-width="2.5"/>
+<path d="M32 12 18 46h6.5l2.8-7h9.4l2.8 7H46L32 12Zm0 12.4 3.4 8.6h-6.8l3.4-8.6Z" fill="url(#g2)"/>
+<circle cx="14" cy="18" r="2.4" fill="#00e5ff"/>
+<circle cx="50" cy="14" r="2" fill="#a78bfa"/>
+<circle cx="52" cy="50" r="2.4" fill="#ff2d78"/>
+<circle cx="12" cy="50" r="2" fill="#22ff9a"/>
+<path d="M14 18 24 27M50 14l-9 9M52 50 41 41M12 50l11-9" stroke="url(#g1)" stroke-width="1.2" opacity="0.75"/>
+</svg>

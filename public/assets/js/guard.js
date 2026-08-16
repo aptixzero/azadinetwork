@@ -103,5 +103,24 @@
     }
   }, 2000);
 
+  var touchTimer = null;
+  d.addEventListener('touchstart', function (e) {
+    if (e.touches.length >= 3) { flashShield(); return; }
+    var t = e.target;
+    if (t && t.closest && t.closest('.media-shell, img, video')) {
+      touchTimer = setTimeout(flashShield, 550);
+    }
+  }, { passive: true, capture: true });
+  d.addEventListener('touchend', function () {
+    if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+  }, true);
+  d.addEventListener('touchmove', function () {
+    if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+  }, { passive: true, capture: true });
+
+  window.addEventListener('pagehide', showShield);
+  d.addEventListener('freeze', showShield);
+  d.addEventListener('resume', hideShield);
+
   window.__azGuard = { showShield: showShield, hideShield: hideShield };
 })();

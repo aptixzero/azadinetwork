@@ -48,6 +48,10 @@
     star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6-5.4-2.9-5.4 2.9 1.1-6L3.2 9.4l6.1-.8L12 3Z"/></svg>',
     starFill: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6-5.4-2.9-5.4 2.9 1.1-6L3.2 9.4l6.1-.8L12 3Z"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.5-4.5"/></svg>',
+    shop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8.5 5.5 4h13L20 8.5"/><path d="M4 8.5h16V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19V8.5Z"/><path d="M9.5 12a2.5 2.5 0 0 0 5 0"/></svg>',
+    works: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M3 12.5h18"/></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15.5H6.5A2.5 2.5 0 0 0 4 21V5.5Z"/><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3.5 11 8.5-7.5L20.5 11"/><path d="M5.5 9.5V20h13V9.5"/></svg>',
     sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>',
     moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"/></svg>',
     menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
@@ -232,6 +236,124 @@
     document.querySelectorAll('.reveal').forEach(function (n) { revealObserver.observe(n); });
   }
 
+  var snap = { on: false, busy: false, secs: [], touchY: null, bound: false };
+
+  function snapSections() {
+    snap.secs = Array.prototype.slice.call(document.querySelectorAll('main > .section, main > .hero, .site-footer'));
+  }
+
+  function snapIndex() {
+    var y = window.scrollY;
+    var best = 0, bestD = Infinity;
+    for (var i = 0; i < snap.secs.length; i++) {
+      var d = Math.abs(snap.secs[i].offsetTop - y);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  function snapTo(y) {
+    snap.busy = true;
+    var start = window.scrollY;
+    var dist = y - start;
+    var t0 = null;
+    var dur = 620;
+    function step(ts) {
+      if (t0 == null) t0 = ts;
+      var p = Math.min(1, (ts - t0) / dur);
+      var e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      window.scrollTo(0, start + dist * e);
+      if (p < 1) requestAnimationFrame(step);
+      else setTimeout(function () { snap.busy = false; }, 90);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function snapStep(dir) {
+    if (snap.busy || !snap.secs.length) return;
+    var vh = window.innerHeight;
+    var y = window.scrollY;
+    var idx = snapIndex();
+    var cur = snap.secs[idx];
+    var curTop = cur.offsetTop;
+    var curBottom = curTop + cur.offsetHeight;
+    var target;
+    if (dir > 0) {
+      if (curBottom > y + vh + 70) target = Math.min(y + vh * 0.85, curBottom - vh);
+      else if (idx < snap.secs.length - 1) target = snap.secs[idx + 1].offsetTop;
+      else return;
+    } else {
+      if (curTop < y - 70) target = Math.max(y - vh * 0.85, curTop);
+      else if (idx > 0) {
+        var prev = snap.secs[idx - 1];
+        var pb = prev.offsetTop + prev.offsetHeight;
+        target = pb > prev.offsetTop + vh ? pb - vh : prev.offsetTop;
+      }
+      else return;
+    }
+    snapTo(target);
+  }
+
+  function overlayOpen() {
+    var lb = document.getElementById('lightbox');
+    var sv = document.getElementById('storyviewer');
+    return (lb && !lb.hidden) || (sv && !sv.hidden) || document.body.style.overflow === 'hidden';
+  }
+
+  function setupSnapScroll() {
+    snapSections();
+    snap.on = true;
+    if (snap.bound) return;
+    snap.bound = true;
+    window.addEventListener('wheel', function (e) {
+      if (!snap.on || overlayOpen()) return;
+      if (Math.abs(e.deltaY) < 4) return;
+      e.preventDefault();
+      if (!snap.busy) snapStep(e.deltaY > 0 ? 1 : -1);
+    }, { passive: false });
+    window.addEventListener('keydown', function (e) {
+      if (!snap.on || overlayOpen()) return;
+      var t = e.target;
+      if (t && /INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) { e.preventDefault(); snapStep(1); }
+      else if (e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) { e.preventDefault(); snapStep(-1); }
+      else if (e.key === 'Home') { e.preventDefault(); snapTo(0); }
+      else if (e.key === 'End') { e.preventDefault(); var l = snap.secs[snap.secs.length - 1]; if (l) snapTo(l.offsetTop); }
+    });
+    window.addEventListener('touchstart', function (e) {
+      if (!snap.on || overlayOpen()) return;
+      snap.touchY = e.touches[0].clientY;
+    }, { passive: true });
+    window.addEventListener('touchmove', function (e) {
+      if (!snap.on || overlayOpen()) return;
+      if (e.target.closest('.stories-row, .province-cities, .lb-stage, .suggest-panel')) return;
+      e.preventDefault();
+    }, { passive: false });
+    window.addEventListener('touchend', function (e) {
+      if (!snap.on || overlayOpen() || snap.touchY == null) return;
+      var dy = snap.touchY - e.changedTouches[0].clientY;
+      snap.touchY = null;
+      if (Math.abs(dy) > 46) snapStep(dy > 0 ? 1 : -1);
+    }, { passive: true });
+  }
+
+  function setupTilt() {
+    if (window.matchMedia('(hover: none)').matches) return;
+    document.querySelectorAll('.svc-card, .prod-card, .work-card, .article-card, .stat-box').forEach(function (c) {
+      c.classList.add('tilt');
+      c.addEventListener('pointermove', function (e) {
+        if (!c.classList.contains('vis') && c.classList.contains('reveal')) return;
+        var r = c.getBoundingClientRect();
+        var rx = ((e.clientY - r.top) / r.height - 0.5) * -7;
+        var ry = ((e.clientX - r.left) / r.width - 0.5) * 7;
+        c.style.transform = 'perspective(900px) rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg) translateY(-4px)';
+      });
+      c.addEventListener('pointerleave', function () {
+        c.style.transform = '';
+      });
+    });
+  }
+
   function headerHtml() {
     var s = state.data.settings;
     var links = (s.header.links || []).map(function (l) {
@@ -239,18 +361,24 @@
     }).join('');
     var logoInner = s.logoImage
       ? mediaImg(s.logoImage, s.siteName)
-      : '<span>' + esc((s.logoText || 'AZ').slice(0, 2)) + '</span>';
+      : '<img src="/favicon.svg" alt="' + esc(s.siteName) + '" class="logo-svg">';
     return '<header class="site-header"><div class="header-inner">' +
       '<a href="/" data-nav class="logo" data-track="nav:logo">' +
       '<span class="logo-mark">' + logoInner + '</span>' +
       '<span class="logo-grad">' + esc(s.siteName) + '</span></a>' +
       '<nav class="nav-links">' + links + '</nav>' +
       '<div class="header-actions">' +
-      '<a class="icon-btn" href="/saved" data-nav title="نشان‌شده‌ها" data-track="nav:saved">' + ICONS.star + '<span class="badge" data-saved-count hidden></span></a>' +
+      '<button class="icon-btn" data-gsearch title="جستجو">' + ICONS.search + '</button>' +
+      '<a class="icon-btn hide-m" href="/saved" data-nav title="نشان‌شده‌ها" data-track="nav:saved">' + ICONS.star + '<span class="badge" data-saved-count hidden></span></a>' +
       '<button class="icon-btn" data-theme-toggle title="تغییر تم"></button>' +
       '<button class="icon-btn burger" data-burger title="منو">' + ICONS.menu + '</button>' +
       '</div></div></header>' +
-      '<nav class="mobile-nav">' + links + '<a href="/saved" data-nav>نشان‌شده‌ها</a></nav>';
+      '<nav class="mobile-nav"><a href="/" data-nav>خانه</a>' + links + '<a href="/saved" data-nav>نشان‌شده‌ها</a></nav>' +
+      '<div class="gsearch" id="gsearch" hidden><div class="gsearch-box">' +
+      '<div class="gsearch-row"><input id="gsearch-input" placeholder="جستجوی محصول یا نمونه کار (نام یا کد)..." autocomplete="off">' +
+      '<button class="icon-btn" data-gsearch-close>' + ICONS.close + '</button></div>' +
+      '<div class="gsearch-results" id="gsearch-results"></div>' +
+      '</div></div>';
   }
 
   function renderHeaderIcons() {
@@ -281,15 +409,28 @@
     }).join('');
     return '<footer class="site-footer"><div class="container">' +
       '<div class="footer-grid"><div>' +
-      '<div class="logo"><span class="logo-mark">' + esc((s.logoText || 'AZ').slice(0, 2)) + '</span><span class="logo-grad">' + esc(s.siteName) + '</span></div>' +
+      '<div class="logo"><span class="logo-mark"><img src="/favicon.svg" alt="" class="logo-svg"></span><span class="logo-grad">' + esc(s.siteName) + '</span></div>' +
       '<p class="footer-about">' + esc(s.footer.about) + '</p></div>' + cols + '</div>' +
       '<div class="footer-bottom"><span>' + esc(s.footer.copyright) + '</span>' +
       '<span dir="ltr">' + esc(s.siteNameEn) + ' © ' + new Date().getFullYear() + '</span></div>' +
       '</div></footer>';
   }
 
+  function bottomNavHtml() {
+    var p = state.route || '/';
+    function on(x) { return p === x ? ' class="on"' : ''; }
+    return '<nav class="bottom-nav">' +
+      '<a href="/shop" data-nav' + on('/shop') + ' data-track="bnav:shop">' + ICONS.shop + '<span>فروشگاه</span></a>' +
+      '<a href="/portfolio" data-nav' + on('/portfolio') + ' data-track="bnav:works">' + ICONS.works + '<span>نمونه کارها</span></a>' +
+      '<a href="/contact" data-nav class="bn-center' + (p === '/contact' ? ' on' : '') + '" data-track="bnav:contact"><span class="bn-fab">' + ICONS.chat + '</span><span>ارتباط با ما</span></a>' +
+      '<a href="/articles" data-nav' + on('/articles') + ' data-track="bnav:articles">' + ICONS.book + '<span>مقالات</span></a>' +
+      '<a href="/saved" data-nav' + on('/saved') + ' data-track="bnav:saved">' + ICONS.star + '<span>نشان‌شده</span></a>' +
+      '</nav>';
+  }
+
   function shell(inner) {
-    app.innerHTML = headerHtml() + '<main>' + inner + '</main>' + footerHtml();
+    snap.on = false;
+    app.innerHTML = headerHtml() + '<main>' + inner + '</main>' + footerHtml() + bottomNavHtml();
     var burger = document.querySelector('[data-burger]');
     var mob = document.querySelector('.mobile-nav');
     if (burger) burger.addEventListener('click', function () {
@@ -298,65 +439,192 @@
     });
     var tbtn = document.querySelector('[data-theme-toggle]');
     if (tbtn) tbtn.addEventListener('click', toggleTheme);
+    setupGsearch();
     renderHeaderIcons();
     setupReveal();
+    setupTilt();
     window.scrollTo(0, 0);
   }
 
-  function heroNetCanvas(container) {
+  function setupGsearch() {
+    var overlay = document.getElementById('gsearch');
+    var input = document.getElementById('gsearch-input');
+    var results = document.getElementById('gsearch-results');
+    var openBtn = document.querySelector('[data-gsearch]');
+    var closeBtn = document.querySelector('[data-gsearch-close]');
+    if (!overlay || !openBtn) return;
+    function open() {
+      overlay.hidden = false;
+      document.body.style.overflow = 'hidden';
+      setTimeout(function () { input.focus(); }, 60);
+    }
+    function close() {
+      overlay.hidden = true;
+      document.body.style.overflow = '';
+      input.value = '';
+      results.innerHTML = '';
+    }
+    openBtn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !overlay.hidden) close(); });
+    var deb = null;
+    input.addEventListener('input', function () {
+      if (deb) clearTimeout(deb);
+      var q = input.value.trim();
+      if (q.length < 2) { results.innerHTML = ''; return; }
+      deb = setTimeout(function () {
+        track('search', q);
+        Promise.all([
+          fetchJson('/api/public/search?type=products&q=' + encodeURIComponent(q)).catch(function () { return { results: [] }; }),
+          fetchJson('/api/public/search?type=works&q=' + encodeURIComponent(q)).catch(function () { return { results: [] }; })
+        ]).then(function (rs) {
+          var html = '';
+          if (rs[0].results.length) {
+            html += '<div class="gsr-head">محصولات</div>' + rs[0].results.slice(0, 6).map(function (r) {
+              return '<button class="gsr-item" data-gsr="product:' + esc(r.id) + '">' + mediaImg(r.image, r.name) + '<span class="gsr-name">' + esc(r.name) + '</span><span class="gsr-code">' + esc(r.code || '') + '</span></button>';
+            }).join('');
+          }
+          if (rs[1].results.length) {
+            html += '<div class="gsr-head">نمونه کارها</div>' + rs[1].results.slice(0, 6).map(function (r) {
+              return '<button class="gsr-item" data-gsr="work:' + esc(r.id) + '">' + mediaImg(r.cover, r.title) + '<span class="gsr-name">' + esc(r.title) + '</span><span class="gsr-code">' + esc(r.code || '') + '</span></button>';
+            }).join('');
+          }
+          results.innerHTML = html || '<div class="gsr-empty">نتیجه‌ای پیدا نشد</div>';
+          results.querySelectorAll('[data-gsr]').forEach(function (b) {
+            b.addEventListener('click', function () {
+              var pr = b.getAttribute('data-gsr').split(':');
+              track('suggest', pr[0] + ':' + pr[1]);
+              close();
+              if (pr[0] === 'product') navigate('/contact?product=' + encodeURIComponent(pr[1]));
+              else navigate('/portfolio/' + encodeURIComponent(pr[1]));
+            });
+          });
+        });
+      }, 260);
+    });
+  }
+
+  function startBgNet() {
     var canvas = document.createElement('canvas');
-    canvas.className = 'hero-net';
-    container.appendChild(canvas);
+    canvas.id = 'bgnet';
+    document.body.insertBefore(canvas, document.body.firstChild);
     var ctx = canvas.getContext('2d');
     var nodes = [];
     var W = 0, H = 0;
-    var running = true;
+    var mouse = { x: -9999, y: -9999, tx: -9999, ty: -9999 };
+    var pulses = [];
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function resize() {
-      W = canvas.width = container.clientWidth;
-      H = canvas.height = container.clientHeight;
-      var count = Math.min(90, Math.max(30, Math.floor(W * H / 22000)));
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+      var count = Math.min(110, Math.max(36, Math.floor(W * H / 20000)));
       nodes = [];
       for (var i = 0; i < count; i++) {
+        var depth = Math.random() * 0.7 + 0.3;
         nodes.push({
           x: Math.random() * W, y: Math.random() * H,
-          vx: (Math.random() - 0.5) * 0.45, vy: (Math.random() - 0.5) * 0.45,
-          r: Math.random() * 1.8 + 0.8
+          vx: (Math.random() - 0.5) * 0.35 * depth,
+          vy: (Math.random() - 0.5) * 0.35 * depth,
+          r: depth * 2.1 + 0.6,
+          z: depth
         });
       }
     }
     resize();
     window.addEventListener('resize', resize);
 
+    window.addEventListener('pointermove', function (e) {
+      mouse.tx = e.clientX;
+      mouse.ty = e.clientY;
+    }, { passive: true });
+    window.addEventListener('pointerleave', function () {
+      mouse.tx = -9999; mouse.ty = -9999;
+    });
+
     var dark = function () { return document.body.getAttribute('data-theme') !== 'light'; };
 
+    function spawnPulse() {
+      if (nodes.length < 2 || reduced) return;
+      var a = nodes[Math.floor(Math.random() * nodes.length)];
+      var b = nodes[Math.floor(Math.random() * nodes.length)];
+      if (a === b) return;
+      pulses.push({ a: a, b: b, t: 0 });
+      if (pulses.length > 6) pulses.shift();
+    }
+    setInterval(spawnPulse, 1400);
+
     function frame() {
-      if (!running) return;
-      if (!document.body.contains(canvas)) { running = false; return; }
       ctx.clearRect(0, 0, W, H);
-      var lineBase = dark() ? '34,211,238' : '8,145,178';
-      var dotColor = dark() ? 'rgba(129,140,248,0.8)' : 'rgba(79,70,229,0.7)';
-      for (var i = 0; i < nodes.length; i++) {
-        var n = nodes[i];
-        n.x += n.vx; n.y += n.vy;
-        if (n.x < 0 || n.x > W) n.vx *= -1;
-        if (n.y < 0 || n.y > H) n.vy *= -1;
-        for (var j = i + 1; j < nodes.length; j++) {
-          var m = nodes[j];
-          var dx = n.x - m.x, dy = n.y - m.y;
-          var dist = dx * dx + dy * dy;
-          if (dist < 15000) {
-            ctx.strokeStyle = 'rgba(' + lineBase + ',' + (0.35 * (1 - dist / 15000)).toFixed(3) + ')';
-            ctx.lineWidth = 1;
+      mouse.x += (mouse.tx - mouse.x) * 0.12;
+      mouse.y += (mouse.ty - mouse.y) * 0.12;
+      var isDark = dark();
+      var lineBase = isDark ? '0,229,255' : '8,120,160';
+      var mouseBase = isDark ? '255,45,120' : '200,30,90';
+      var dotColor = isDark ? 'rgba(167,139,250,0.75)' : 'rgba(90,70,200,0.6)';
+      var i, j, n, m, dx, dy, dist;
+      for (i = 0; i < nodes.length; i++) {
+        n = nodes[i];
+        if (!reduced) {
+          n.x += n.vx; n.y += n.vy;
+          dx = n.x - mouse.x; dy = n.y - mouse.y;
+          dist = dx * dx + dy * dy;
+          if (dist < 32400 && dist > 100) {
+            var f = 0.6 / Math.sqrt(dist);
+            n.x += dx * f * n.z;
+            n.y += dy * f * n.z;
+          }
+        }
+        if (n.x < -20) n.x = W + 20; else if (n.x > W + 20) n.x = -20;
+        if (n.y < -20) n.y = H + 20; else if (n.y > H + 20) n.y = -20;
+        for (j = i + 1; j < nodes.length; j++) {
+          m = nodes[j];
+          dx = n.x - m.x; dy = n.y - m.y;
+          dist = dx * dx + dy * dy;
+          if (dist < 14400) {
+            ctx.strokeStyle = 'rgba(' + lineBase + ',' + (0.22 * (1 - dist / 14400) * n.z).toFixed(3) + ')';
+            ctx.lineWidth = n.z;
             ctx.beginPath();
             ctx.moveTo(n.x, n.y);
             ctx.lineTo(m.x, m.y);
             ctx.stroke();
           }
         }
+        dx = n.x - mouse.x; dy = n.y - mouse.y;
+        dist = dx * dx + dy * dy;
+        if (dist < 48400) {
+          var op = (0.5 * (1 - dist / 48400)).toFixed(3);
+          ctx.strokeStyle = 'rgba(' + mouseBase + ',' + op + ')';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(n.x, n.y);
+          ctx.lineTo(mouse.x, mouse.y);
+          ctx.stroke();
+        }
         ctx.fillStyle = dotColor;
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      for (i = pulses.length - 1; i >= 0; i--) {
+        var p = pulses[i];
+        p.t += 0.02;
+        if (p.t >= 1) { pulses.splice(i, 1); continue; }
+        var px = p.a.x + (p.b.x - p.a.x) * p.t;
+        var py = p.a.y + (p.b.y - p.a.y) * p.t;
+        ctx.fillStyle = 'rgba(' + lineBase + ',' + (0.9 * Math.sin(Math.PI * p.t)).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.arc(px, py, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (mouse.tx > -999) {
+        var g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 130);
+        g.addColorStop(0, 'rgba(' + lineBase + ',0.08)');
+        g.addColorStop(1, 'rgba(' + lineBase + ',0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 130, 0, Math.PI * 2);
         ctx.fill();
       }
       requestAnimationFrame(frame);
@@ -379,8 +647,9 @@
 
     order.forEach(function (key) {
       if (key === 'hero' && s.hero.enabled) {
-        parts.push('<section class="hero" id="hero"><div class="hero-content">' +
-          '<h1 class="glitch-title" data-text="' + esc(s.hero.title) + '">' + esc(s.hero.title) + '</h1>' +
+        parts.push('<section class="hero snap-sec" id="hero"><div class="hero-content">' +
+          '<div class="hero-tagline-en">NETWORK &amp; SECURITY SOLUTIONS</div>' +
+          '<h1 class="glitch-title" data-text="' + esc(s.hero.title) + '">' + esc(s.hero.title) + '<span class="glitch-scan"></span></h1>' +
           '<p class="hero-welcome">' + esc(s.hero.welcome) + '</p>' +
           '<p class="hero-desc">' + esc(s.hero.description) + '</p>' +
           (s.hero.sub ? '<p class="hero-sub">' + esc(s.hero.sub) + '</p>' : '') +
@@ -396,14 +665,21 @@
             '<span class="story-ring"><span class="story-ring-inner">' + mediaImg(thumb, st.title) + '</span></span>' +
             '<span class="story-name">' + esc(st.title) + '</span></button>';
         }).join('');
-        parts.push('<section class="section compact" id="stories"><div class="container">' +
+        parts.push('<section class="section" id="stories"><div class="container">' +
           sectionHead(sm.stories) + '<div class="stories-row">' + bubbles + '</div></div></section>');
       }
       if (key === 'banner' && s.banner.enabled) {
-        parts.push('<div class="container reveal"><div class="banner-strip">' +
+        var bImgs = d.products.filter(function (p) { return p.image; }).slice(0, 3).map(function (p, bi) {
+          return '<div class="banner-img bi-' + bi + ' reveal">' + mediaImg(p.image, p.name) + '</div>';
+        }).join('');
+        parts.push('<section class="section" id="banner"><div class="container">' +
+          '<div class="banner-hero reveal">' +
+          '<div class="banner-imgs">' + bImgs + '</div>' +
+          '<div class="banner-copy">' +
+          '<span class="banner-kicker">AZADI NETWORK</span>' +
           '<span class="banner-text">' + esc(s.banner.text) + '</span>' +
           '<a class="btn btn-primary" href="' + esc(s.banner.buttonUrl) + '" data-nav data-track="cta:banner">' + esc(s.banner.buttonLabel) + '</a>' +
-          '</div></div>');
+          '</div></div></div></section>');
       }
       if (key === 'services' && sm.services.enabled && d.services.length) {
         var svc = d.services.map(function (sv) {
@@ -450,7 +726,7 @@
           return '<div class="stat-box reveal"><div class="stat-value">' + esc(st.value) + '</div>' +
             '<div class="stat-label">' + esc(st.label) + '</div></div>';
         }).join('');
-        parts.push('<section class="section compact" id="stats"><div class="container">' +
+        parts.push('<section class="section" id="stats"><div class="container">' +
           sectionHead(sm.stats) + '<div class="stats-row">' + stats + '</div></div></section>');
       }
       if (key === 'articles' && sm.articles.enabled && d.articles.length) {
@@ -466,15 +742,14 @@
             '<button class="faq-q" data-track="faq:' + esc(f.id) + '"><span>' + esc(f.q) + '</span><span class="fq-icon">' + ICONS.plus + '</span></button>' +
             '<div class="faq-a">' + esc(f.a) + '</div></div>';
         }).join('');
-        parts.push('<section class="section compact" id="faq"><div class="container">' +
+        parts.push('<section class="section" id="faq"><div class="container">' +
           sectionHead(sm.faq) + '<div class="faq-list">' + faqs + '</div></div></section>');
       }
     });
 
     shell(parts.join(''));
 
-    var hero = document.getElementById('hero');
-    if (hero) heroNetCanvas(hero);
+    setupSnapScroll();
 
     document.querySelectorAll('[data-story]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -1098,6 +1373,7 @@
   }
 
   function boot() {
+    startBgNet();
     fetchJson('/api/public/bootstrap').then(function (data) {
       state.data = data;
       applyTheme();
