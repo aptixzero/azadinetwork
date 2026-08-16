@@ -1,6 +1,9 @@
 (function () {
   'use strict';
 
+  var BRAND_MARK = '/assets/images/azadi-mark.webp';
+  var BRAND_ART = '/assets/images/azadi-brand.webp';
+
   var state = {
     data: null,
     theme: localStorage.getItem('az_theme') || null,
@@ -279,7 +282,8 @@
     var curBottom = curTop + cur.offsetHeight;
     var target;
     if (dir > 0) {
-      if (curBottom > y + vh + 70) target = Math.min(y + vh * 0.85, curBottom - vh);
+      if (cur.classList.contains('hero') && window.innerWidth > 760 && idx < snap.secs.length - 1) target = snap.secs[idx + 1].offsetTop;
+      else if (curBottom > y + vh + 70) target = Math.min(y + vh * 0.85, curBottom - vh);
       else if (idx < snap.secs.length - 1) target = snap.secs[idx + 1].offsetTop;
       else return;
     } else {
@@ -361,7 +365,7 @@
     }).join('');
     var logoInner = s.logoImage
       ? mediaImg(s.logoImage, s.siteName)
-      : '<img src="/favicon.svg" alt="' + esc(s.siteName) + '" class="logo-svg">';
+      : '<img src="' + BRAND_MARK + '" alt="' + esc(s.siteName) + '" class="logo-svg">';
     return '<header class="site-header"><div class="header-inner">' +
       '<a href="/" data-nav class="logo" data-track="nav:logo">' +
       '<span class="logo-mark">' + logoInner + '</span>' +
@@ -409,7 +413,7 @@
     }).join('');
     return '<footer class="site-footer"><div class="container">' +
       '<div class="footer-grid"><div>' +
-      '<div class="logo"><span class="logo-mark"><img src="/favicon.svg" alt="" class="logo-svg"></span><span class="logo-grad">' + esc(s.siteName) + '</span></div>' +
+      '<div class="logo"><span class="logo-mark"><img src="' + BRAND_MARK + '" alt="" class="logo-svg"></span><span class="logo-grad">' + esc(s.siteName) + '</span></div>' +
       '<p class="footer-about">' + esc(s.footer.about) + '</p></div>' + cols + '</div>' +
       '<div class="footer-bottom"><span>' + esc(s.footer.copyright) + '</span>' +
       '<span dir="ltr">' + esc(s.siteNameEn) + ' © ' + new Date().getFullYear() + '</span></div>' +
@@ -647,8 +651,8 @@
 
     order.forEach(function (key) {
       if (key === 'hero' && s.hero.enabled) {
-        parts.push('<section class="hero snap-sec" id="hero"><div class="hero-content">' +
-          '<div class="hero-tagline-en">NETWORK &amp; SECURITY SOLUTIONS</div>' +
+        parts.push('<section class="hero snap-sec" id="hero"><div class="hero-content hero-stage">' +
+          '<div class="hero-copy"><div class="hero-tagline-en">NETWORK &amp; SECURITY SOLUTIONS</div>' +
           '<h1 class="glitch-title" data-text="' + esc(s.hero.title) + '">' + esc(s.hero.title) + '<span class="glitch-scan"></span></h1>' +
           '<p class="hero-welcome">' + esc(s.hero.welcome) + '</p>' +
           '<p class="hero-desc">' + esc(s.hero.description) + '</p>' +
@@ -656,7 +660,9 @@
           '<div class="hero-ctas">' +
           (s.hero.ctaLabel ? '<a class="btn btn-primary" href="' + esc(s.hero.ctaUrl) + '" data-nav data-track="cta:hero1">' + esc(s.hero.ctaLabel) + '</a>' : '') +
           (s.hero.cta2Label ? '<a class="btn btn-ghost" href="' + esc(s.hero.cta2Url) + '" data-nav data-track="cta:hero2">' + esc(s.hero.cta2Label) + '</a>' : '') +
-          '</div></div><div class="hero-scroll">' + ICONS.chevDown + '</div></section>');
+          '</div><div class="hero-trust">' + (s.stats || []).slice(0, 3).map(function (st) { return '<span><b>' + esc(st.value) + '</b>' + esc(st.label) + '</span>'; }).join('') + '</div></div>' +
+          '<div class="hero-brand"><div class="brand-orbit orbit-a"></div><div class="brand-orbit orbit-b"></div><div class="brand-hud hud-a" aria-hidden="true">SECURE NODE // 01</div><div class="brand-hud hud-b" aria-hidden="true">SYSTEM ONLINE</div><div class="brand-core"><img src="' + BRAND_ART + '" alt="" width="900" height="900" decoding="async" fetchpriority="high"></div></div>' +
+          '</div><div class="hero-scroll">' + ICONS.chevDown + '</div></section>');
       }
       if (key === 'stories' && sm.stories.enabled && d.stories.length) {
         var bubbles = d.stories.map(function (st, i) {
