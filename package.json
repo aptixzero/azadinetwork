@@ -1,0 +1,14 @@
+{
+  "name": "azadi-network",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Azadi Network - network services and equipment website",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "dependencies": {}
+}
