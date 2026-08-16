@@ -199,13 +199,7 @@ function handle(req, res) {
   notFound(res);
 }
 
-var server = http.createServer(function (req, res) {
-  try {
-    handle(req, res);
-  } catch (e) {
-    try { send(res, 500, 'application/json; charset=utf-8', '{"error":"server_error"}'); } catch (e2) {}
-  }
-});
+var server = http.createServer(requestListener);
 
 server.headersTimeout = 20000;
 server.requestTimeout = 120000;
