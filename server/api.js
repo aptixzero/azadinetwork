@@ -5,6 +5,7 @@ const util = require('./util.js');
 const store = require('./store.js');
 const security = require('./security.js');
 const tracking = require('./tracking.js');
+const bak = require('./bak.js');
 
 function publicSettings(s) {
   return {
@@ -12,7 +13,10 @@ function publicSettings(s) {
     logoText: s.logoText, logoImage: s.logoImage, theme: s.theme, fontScale: s.fontScale,
     header: s.header, hero: s.hero, banner: s.banner, sectionsMeta: s.sectionsMeta,
     sectionOrder: s.sectionOrder, stats: s.stats, faq: s.faq, footer: s.footer,
-    contactPage: s.contactPage
+    contactPage: s.contactPage, commerce: s.commerce || {
+      priceText: 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.',
+      buyButtonText: 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.'
+    }
   };
 }
 
@@ -31,6 +35,41 @@ function listPortfolioPublic(db) {
 function findById(list, id) {
   for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
   return null;
+}
+
+var MEDIA_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'mp4', 'webm', 'mov'];
+
+function applyImportedDb(nextDb, currentAdmin) {
+  if (!nextDb.admin || !nextDb.admin.pass) nextDb.admin = currentAdmin;
+  ['stories', 'services', 'categories', 'products', 'banners', 'provinces', 'articles', 'portfolio'].forEach(function (k) {
+    if (!Array.isArray(nextDb[k])) nextDb[k] = [];
+  });
+  nextDb.settings = sanitizeSettings(nextDb.settings, nextDb.settings);
+  nextDb.stories = nextDb.stories.slice(0, 40).map(sanitizeStory);
+  nextDb.services = nextDb.services.slice(0, 30).map(sanitizeService);
+  nextDb.categories = nextDb.categories.slice(0, 40).map(sanitizeCategory);
+  nextDb.products = nextDb.products.slice(0, 500).map(sanitizeProduct);
+  nextDb.banners = nextDb.banners.slice(0, 30).map(sanitizeBanner);
+  nextDb.provinces = nextDb.provinces.slice(0, 40).map(sanitizeProvince);
+  nextDb.articles = nextDb.articles.slice(0, 500).map(sanitizeArticle);
+  nextDb.portfolio = nextDb.portfolio.slice(0, 500).map(sanitizeWork);
+  if (!nextDb.meta) nextDb.meta = { createdAt: util.now(), version: 2 };
+  store.replaceDb(nextDb);
+}
+
+function writeRestoredMedia(files, safeNameFn) {
+  Object.keys(files || {}).forEach(function (nm) {
+    var safe = safeNameFn(nm);
+    if (!safe || !files[nm]) return;
+    var ext = (safe.match(/\.([a-zA-Z0-9]{1,6})$/) || [])[1] || '';
+    ext = ext.toLowerCase();
+    if (MEDIA_EXTS.indexOf(ext) === -1) return;
+    if (ext === 'svg') {
+      var txt = files[nm].toString('utf8');
+      if (/<script|onload\s*=|onerror\s*=|javascript:/i.test(txt)) return;
+    }
+    try { fs.writeFileSync(path.join(store.UPLOAD_DIR, safe), files[nm]); } catch (e3) {}
+  });
 }
 
 function sanitizeLinks(arr, max) {
@@ -119,13 +158,31 @@ function sanitizeProduct(x) {
     code: util.clampStr(x.code, 40),
     name: util.clampStr(x.name, 200),
     desc: util.clampStr(x.desc, 2000),
+    details: util.clampStr(x.details, 4000),
     category: util.clampStr(x.category, 24),
     image: sanitizeMediaRef(x.image),
+    banner: sanitizeMediaRef(x.banner),
+    video: sanitizeMediaRef(x.video),
     images: (Array.isArray(x.images) ? x.images : []).slice(0, 12).map(sanitizeMediaRef).filter(Boolean),
+    features: (Array.isArray(x.features) ? x.features : []).slice(0, 24).map(function (t) { return util.clampStr(t, 160); }).filter(Boolean),
     featured: util.clampBool(x.featured),
+    specialOffer: util.clampBool(x.specialOffer),
     order: util.clampNum(x.order, 0, 9999, 0),
     tags: (Array.isArray(x.tags) ? x.tags : []).slice(0, 15).map(function (t) { return util.clampStr(t, 40); }).filter(Boolean),
+    blocks: sanitizeBlocks(x.blocks),
     createdAt: util.clampNum(x.createdAt, 0, 9e15, util.now())
+  };
+}
+
+function sanitizeBanner(x) {
+  return {
+    id: util.clampStr(x.id, 24) || util.uid(6),
+    title: util.clampStr(x.title, 120),
+    subtitle: util.clampStr(x.subtitle, 200),
+    image: sanitizeMediaRef(x.image),
+    url: sanitizeUrl(x.url),
+    order: util.clampNum(x.order, 0, 9999, 0),
+    enabled: util.clampBool(x.enabled)
   };
 }
 
@@ -219,15 +276,15 @@ function sanitizeSettings(cur, x) {
   };
   var sm = x.sectionsMeta || {};
   s.sectionsMeta = {};
-  ['stories', 'services', 'products', 'provinces', 'articles', 'portfolioHome', 'stats', 'faq'].forEach(function (k) {
+  ['stories', 'services', 'products', 'provinces', 'articles', 'portfolioHome', 'offers', 'stats', 'faq'].forEach(function (k) {
     var m = sm[k] || {};
     s.sectionsMeta[k] = {
-      enabled: util.clampBool(m.enabled),
+      enabled: m.enabled !== false,
       title: util.clampStr(m.title, 150),
       subtitle: util.clampStr(m.subtitle, 300)
     };
   });
-  var validSections = ['hero', 'stories', 'banner', 'services', 'products', 'portfolioHome', 'provinces', 'stats', 'articles', 'faq'];
+  var validSections = ['hero', 'stories', 'services', 'products', 'portfolioHome', 'provinces', 'articles', 'offers', 'stats', 'faq'];
   s.sectionOrder = (Array.isArray(x.sectionOrder) ? x.sectionOrder : []).filter(function (k) {
     return validSections.indexOf(k) !== -1;
   });
@@ -265,6 +322,11 @@ function sanitizeSettings(cur, x) {
     restore: util.clampBool(nf.restore),
     content: util.clampBool(nf.content),
     tracking: util.clampBool(nf.tracking)
+  };
+  var cm = x.commerce || {};
+  s.commerce = {
+    priceText: util.clampStr(cm.priceText, 300) || 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.',
+    buyButtonText: util.clampStr(cm.buyButtonText, 300) || 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.'
   };
   return s;
 }
@@ -321,6 +383,7 @@ function handle(req, res, u, pathname, ip, cookies, h) {
       services: db.services.filter(function (s) { return s.enabled; }).sort(function (a, b) { return a.order - b.order; }),
       categories: db.categories,
       products: db.products.slice().sort(function (a, b) { return a.order - b.order; }),
+      banners: (db.banners || []).filter(function (b) { return b.enabled !== false; }).sort(function (a, b) { return a.order - b.order; }),
       provinces: db.provinces,
       articles: listArticlesPublic(db),
       portfolio: listPortfolioPublic(db)
@@ -331,6 +394,12 @@ function handle(req, res, u, pathname, ip, cookies, h) {
     var a = findById(db.articles, util.clampStr(route.slice(16), 24));
     if (!a || !a.published) return h.notFound(res);
     return h.sendJson(res, 200, a);
+  }
+
+  if (route.indexOf('/public/product/') === 0 && method === 'GET') {
+    var prod = findById(db.products, util.clampStr(route.slice(16), 24));
+    if (!prod) return h.notFound(res);
+    return h.sendJson(res, 200, prod);
   }
 
   if (route.indexOf('/public/work/') === 0 && method === 'GET') {
@@ -442,12 +511,13 @@ function handle(req, res, u, pathname, ip, cookies, h) {
     services: { key: 'services', sanitize: sanitizeService, max: 30 },
     categories: { key: 'categories', sanitize: sanitizeCategory, max: 40 },
     products: { key: 'products', sanitize: sanitizeProduct, max: 500 },
+    banners: { key: 'banners', sanitize: sanitizeBanner, max: 30 },
     provinces: { key: 'provinces', sanitize: sanitizeProvince, max: 40 },
     articles: { key: 'articles', sanitize: sanitizeArticle, max: 500 },
     portfolio: { key: 'portfolio', sanitize: sanitizeWork, max: 500 }
   };
 
-  var colMatch = route.match(/^\/admin\/(stories|services|categories|products|provinces|articles|portfolio)(?:\/([a-zA-Z0-9_-]{1,24}))?$/);
+  var colMatch = route.match(/^\/admin\/(stories|services|categories|products|banners|provinces|articles|portfolio)(?:\/([a-zA-Z0-9_-]{1,24}))?$/);
   if (colMatch) {
     var col = collections[colMatch[1]];
     var list = db[col.key];
@@ -587,6 +657,41 @@ function handle(req, res, u, pathname, ip, cookies, h) {
     return h.sendJson(res, 200, { db: db, track: store.getTrack(), exportedAt: util.now(), format: 'azadi-backup-1' });
   }
 
+  if (route === '/admin/backup/full' && method === 'GET') {
+    store.flush();
+    var bakName = 'azadi-' + util.uid(6) + '.bak';
+    var bakPath = path.join(store.TMP_DIR, bakName);
+    var fileList = [];
+    try {
+      fs.readdirSync(store.UPLOAD_DIR).forEach(function (f) {
+        if (!/^[a-zA-Z0-9._-]+$/.test(f) || f[0] === '.') return;
+        var fp = path.join(store.UPLOAD_DIR, f);
+        try {
+          if (fs.statSync(fp).isFile()) fileList.push({ name: f, absPath: fp });
+        } catch (e) {}
+      });
+    } catch (e) {}
+    try {
+      bak.packToFile(bakPath, { db: db, track: store.getTrack(), exportedAt: util.now() }, fileList);
+    } catch (e) {
+      return h.sendJson(res, 500, { error: 'backup_failed' });
+    }
+    return fs.stat(bakPath, function (err, st) {
+      if (err) return h.sendJson(res, 500, { error: 'backup_failed' });
+      res.writeHead(200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': 'attachment; filename="azadi_network.bak"',
+        'Content-Length': st.size,
+        'Cache-Control': 'no-store'
+      });
+      var rs = fs.createReadStream(bakPath);
+      rs.pipe(res);
+      function cleanup() { try { fs.unlinkSync(bakPath); } catch (e2) {} }
+      rs.on('close', cleanup);
+      rs.on('error', cleanup);
+    });
+  }
+
   if (route.indexOf('/admin/backup/file/') === 0 && method === 'GET') {
     var bn = h.safeName(route.slice(19));
     if (!bn) return h.notFound(res);
@@ -637,25 +742,38 @@ function handle(req, res, u, pathname, ip, cookies, h) {
       if (!body.db || body.format !== 'azadi-backup-1' || !body.db.settings) {
         return h.sendJson(res, 400, { error: 'bad_backup' });
       }
-      var currentAdmin = db.admin;
-      var nextDb = body.db;
-      if (!nextDb.admin || !nextDb.admin.pass) nextDb.admin = currentAdmin;
-      ['stories', 'services', 'categories', 'products', 'provinces', 'articles', 'portfolio'].forEach(function (k) {
-        if (!Array.isArray(nextDb[k])) nextDb[k] = [];
-      });
-      nextDb.settings = sanitizeSettings(nextDb.settings, nextDb.settings);
-      nextDb.stories = nextDb.stories.slice(0, 40).map(sanitizeStory);
-      nextDb.services = nextDb.services.slice(0, 30).map(sanitizeService);
-      nextDb.categories = nextDb.categories.slice(0, 40).map(sanitizeCategory);
-      nextDb.products = nextDb.products.slice(0, 500).map(sanitizeProduct);
-      nextDb.provinces = nextDb.provinces.slice(0, 40).map(sanitizeProvince);
-      nextDb.articles = nextDb.articles.slice(0, 500).map(sanitizeArticle);
-      nextDb.portfolio = nextDb.portfolio.slice(0, 500).map(sanitizeWork);
-      if (!nextDb.meta) nextDb.meta = { createdAt: util.now(), version: 1 };
-      store.replaceDb(nextDb);
+      applyImportedDb(body.db, db.admin);
       if (body.track && body.track.visitors) store.replaceTrack(body.track);
       delete restoreSessions[rid2];
       h.sendJson(res, 200, { ok: true, files: 0 });
+    });
+  }
+
+  if (route === '/admin/restore/bak' && method === 'POST') {
+    return h.readBody(req, 200 * 1024 * 1024, function (err, buf) {
+      if (err || !buf) return h.sendJson(res, 400, { error: 'bad_request' });
+      var unpacked;
+      try {
+        if (bak.isBak(buf)) unpacked = bak.unpack(buf);
+        else {
+          var parsed = util.safeJson(buf.toString('utf8'), null);
+          if (!parsed || !parsed.db || !parsed.db.settings) return h.sendJson(res, 400, { error: 'bad_backup' });
+          unpacked = { db: parsed.db, track: parsed.track || null, files: {} };
+          if (parsed.mediaBase64) {
+            Object.keys(parsed.mediaBase64).forEach(function (nm) {
+              var raw = String(parsed.mediaBase64[nm] || '');
+              var b64 = raw.indexOf(',') !== -1 ? raw.split(',')[1] : raw;
+              try { unpacked.files[nm] = Buffer.from(b64, 'base64'); } catch (e2) {}
+            });
+          }
+        }
+      } catch (e) {
+        return h.sendJson(res, 400, { error: 'bad_backup' });
+      }
+      applyImportedDb(unpacked.db, db.admin);
+      if (unpacked.track && unpacked.track.visitors) store.replaceTrack(unpacked.track);
+      writeRestoredMedia(unpacked.files, h.safeName);
+      h.sendJson(res, 200, { ok: true });
     });
   }
 
