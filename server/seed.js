@@ -49,14 +49,15 @@ function seed() {
       sectionsMeta: {
         stories: { enabled: true, title: 'استوری‌ها', subtitle: 'تازه‌ترین‌های آزادی نتورک' },
         services: { enabled: true, title: 'خدماتی که ارائه می‌دهیم', subtitle: 'راهکارهای کامل زیرساخت شبکه' },
-        products: { enabled: true, title: 'محصولات پرفروش', subtitle: 'برای مطلع شدن از قیمت در بله یا واتساپ پیام بدهید' },
-        provinces: { enabled: true, title: 'استان‌هایی که خدمات می‌دهیم', subtitle: 'پوشش خدمات در سراسر کشور' },
+        products: { enabled: true, title: 'محصولات پرفروش', subtitle: 'منتخب تجهیزات شبکه و نظارت تصویری' },
+        provinces: { enabled: true, title: 'استان‌هایی که خدمات می‌دهیم', subtitle: 'شهرهای سبز تحت پوشش هستند — شهرهای قرمز هنوز پوشش ندارند' },
         articles: { enabled: true, title: 'مقالات و آموزش', subtitle: 'دانش شبکه را با ما بیاموزید' },
         portfolioHome: { enabled: true, title: 'نمونه کارهای منتخب', subtitle: 'کیفیت اجرا را ببینید' },
+        offers: { enabled: true, title: 'پیشنهاد ویژه', subtitle: 'فرصت‌های منتخب این هفته' },
         stats: { enabled: true, title: 'آزادی نتورک در یک نگاه', subtitle: '' },
         faq: { enabled: true, title: 'سوالات متداول', subtitle: 'پاسخ پرسش‌های رایج شما' }
       },
-      sectionOrder: ['hero', 'stories', 'banner', 'services', 'products', 'portfolioHome', 'provinces', 'stats', 'articles', 'faq'],
+      sectionOrder: ['hero', 'stories', 'services', 'products', 'portfolioHome', 'provinces', 'articles', 'offers', 'stats', 'faq'],
       stats: [
         { id: 's1', label: 'پروژه موفق', value: '250+' },
         { id: 's2', label: 'سال تجربه', value: '10+' },
@@ -125,6 +126,10 @@ function seed() {
           }
         ]
       },
+      commerce: {
+        priceText: 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.',
+        buyButtonText: 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.'
+      },
       notifications: {
         backup: true,
         restore: true,
@@ -150,13 +155,67 @@ function seed() {
       { id: 'c3', name: 'تجهیزات سرور و رک', slug: 'server' },
       { id: 'c4', name: 'تجهیزات شبکه', slug: 'network' }
     ],
+    banners: [
+      { id: 'bn1', title: 'نظارت تصویری هوشمند', subtitle: 'دوربین و NVR سازمانی', image: 'u/banner-cctv.svg', url: '/shop?cat=cctv', order: 1, enabled: true },
+      { id: 'bn2', title: 'لینک وایرلس پایدار', subtitle: 'ارتباط نقطه به نقطه تا ۲۰ کیلومتر', image: 'u/banner-wireless.svg', url: '/shop?cat=wireless', order: 2, enabled: true },
+      { id: 'bn3', title: 'اتاق سرور استاندارد', subtitle: 'رک، UPS و خنک‌سازی حرفه‌ای', image: 'u/banner-server.svg', url: '/portfolio', order: 3, enabled: true },
+      { id: 'bn4', title: 'شبکه سازمانی امن', subtitle: 'سوییچ، فایروال و پشتیبانی ۲۴/۷', image: 'u/banner-net.svg', url: '/contact', order: 4, enabled: true }
+    ],
     products: [
-      { id: 'p1', code: 'PR-1001', name: 'دوربین بولت 4 مگاپیکسل', desc: 'دوربین تحت شبکه با دید در شب رنگی، ضدآب IP67 و لنز ۳.۶ میلی‌متر', category: 'c1', image: 'u/prod-cam.svg', images: ['u/prod-cam.svg'], featured: true, order: 1, tags: ['دوربین', 'IP', 'نظارتی'], createdAt: t },
-      { id: 'p2', code: 'PR-1002', name: 'رادیو وایرلس 5 گیگاهرتز', desc: 'رادیو پرقدرت مخصوص لینک‌های نقطه به نقطه تا ۲۰ کیلومتر', category: 'c2', image: 'u/prod-radio.svg', images: ['u/prod-radio.svg'], featured: true, order: 2, tags: ['وایرلس', 'رادیو'], createdAt: t },
-      { id: 'p3', code: 'PR-1003', name: 'رک ایستاده 27 یونیت', desc: 'رک استاندارد عمق ۶۰ با فن سقفی، سینی و مدیریت کابل', category: 'c3', image: 'u/prod-rack.svg', images: ['u/prod-rack.svg'], featured: true, order: 3, tags: ['رک', 'سرور'], createdAt: t },
-      { id: 'p4', code: 'PR-1004', name: 'سوییچ 24 پورت گیگابیت', desc: 'سوییچ مدیریتی لایه ۲ با پورت‌های SFP و قابلیت VLAN', category: 'c4', image: 'u/prod-switch.svg', images: ['u/prod-switch.svg'], featured: true, order: 4, tags: ['سوییچ', 'شبکه'], createdAt: t },
-      { id: 'p5', code: 'PR-1005', name: 'دستگاه ضبط 16 کانال', desc: 'NVR شانزده کانال با پشتیبانی از دو هارد و خروجی 4K', category: 'c1', image: 'u/prod-nvr.svg', images: ['u/prod-nvr.svg'], featured: false, order: 5, tags: ['ضبط', 'NVR'], createdAt: t },
-      { id: 'p6', code: 'PR-1006', name: 'اکسس پوینت سقفی', desc: 'اکسس پوینت دوباند مخصوص محیط‌های پرتراکم اداری', category: 'c2', image: 'u/prod-ap.svg', images: ['u/prod-ap.svg'], featured: false, order: 6, tags: ['وایرلس', 'اکسس پوینت'], createdAt: t }
+      {
+        id: 'p1', code: 'PR-1001', name: 'دوربین بولت 4 مگاپیکسل',
+        desc: 'دوربین تحت شبکه با دید در شب رنگی، ضدآب IP67 و لنز ۳.۶ میلی‌متر',
+        details: 'مناسب نمای بیرونی فروشگاه، حیاط و محیط‌های صنعتی. تصویر پایدار در نور کم با LED سفید و مادون قرمز.',
+        category: 'c1', image: 'u/prod-cam.svg', banner: 'u/banner-cctv.svg', video: '',
+        images: ['u/prod-cam.svg', 'u/work-cctv.svg'],
+        features: ['رزولوشن ۴ مگاپیکسل', 'دید در شب رنگی', 'استاندارد ضدآب IP67', 'لنز ۳.۶ میلی‌متر', 'پشتیبانی PoE'],
+        featured: true, specialOffer: true, order: 1, tags: ['دوربین', 'IP', 'نظارتی'], createdAt: t, blocks: []
+      },
+      {
+        id: 'p2', code: 'PR-1002', name: 'رادیو وایرلس 5 گیگاهرتز',
+        desc: 'رادیو پرقدرت مخصوص لینک‌های نقطه به نقطه تا ۲۰ کیلومتر',
+        details: 'برای اتصال دو ساختمان، کارخانه به دفتر و انتقال تصویر دوربین روی لینک اختصاصی.',
+        category: 'c2', image: 'u/prod-radio.svg', banner: 'u/banner-wireless.svg', video: '',
+        images: ['u/prod-radio.svg', 'u/work-wireless.svg'],
+        features: ['فرکانس ۵ گیگاهرتز', 'برد تا ۲۰ کیلومتر', 'آنتن داخلی جهت‌دار', 'رمزنگاری WPA2', 'نصب دکل و دیوار'],
+        featured: true, specialOffer: true, order: 2, tags: ['وایرلس', 'رادیو'], createdAt: t, blocks: []
+      },
+      {
+        id: 'p3', code: 'PR-1003', name: 'رک ایستاده 27 یونیت',
+        desc: 'رک استاندارد عمق ۶۰ با فن سقفی، سینی و مدیریت کابل',
+        details: 'بدنه فولادی با درب شیشه‌ای، قفل ایمن و فضای کافی برای سرور، سوییچ و UPS.',
+        category: 'c3', image: 'u/prod-rack.svg', banner: 'u/banner-server.svg', video: '',
+        images: ['u/prod-rack.svg', 'u/work-server.svg'],
+        features: ['۲۷ یونیت استاندارد', 'عمق ۶۰ سانتی‌متر', 'فن سقفی دوتایی', 'سینی ثابت و متحرک', 'قفل درب و پنل کناری'],
+        featured: true, specialOffer: false, order: 3, tags: ['رک', 'سرور'], createdAt: t, blocks: []
+      },
+      {
+        id: 'p4', code: 'PR-1004', name: 'سوییچ 24 پورت گیگابیت',
+        desc: 'سوییچ مدیریتی لایه ۲ با پورت‌های SFP و قابلیت VLAN',
+        details: 'هسته شبکه اداری و دوربین. VLAN، QoS و مانیتورینگ پورت برای جداسازی ترافیک.',
+        category: 'c4', image: 'u/prod-switch.svg', banner: 'u/banner-net.svg', video: '',
+        images: ['u/prod-switch.svg'],
+        features: ['۲۴ پورت گیگابیت', '۲ پورت SFP', 'مدیریت لایه ۲', 'VLAN و QoS', 'بدنه رک‌مونت'],
+        featured: true, specialOffer: false, order: 4, tags: ['سوییچ', 'شبکه'], createdAt: t, blocks: []
+      },
+      {
+        id: 'p5', code: 'PR-1005', name: 'دستگاه ضبط 16 کانال',
+        desc: 'NVR شانزده کانال با پشتیبانی از دو هارد و خروجی 4K',
+        details: 'ضبط همزمان ۱۶ دوربین، پخش زنده روی موبایل و جستجوی هوشمند رویداد.',
+        category: 'c1', image: 'u/prod-nvr.svg', banner: 'u/banner-cctv.svg', video: '',
+        images: ['u/prod-nvr.svg'],
+        features: ['۱۶ کانال شبکه', 'خروجی HDMI چهارکی', 'دو جایگاه هارد', 'اپ موبایل', 'پشتیبانی ONVIF'],
+        featured: false, specialOffer: true, order: 5, tags: ['ضبط', 'NVR'], createdAt: t, blocks: []
+      },
+      {
+        id: 'p6', code: 'PR-1006', name: 'اکسس پوینت سقفی',
+        desc: 'اکسس پوینت دوباند مخصوص محیط‌های پرتراکم اداری',
+        details: 'پوشش یکنواخت وای‌فای برای سالن، دفتر و فضای تجاری با مدیریت متمرکز.',
+        category: 'c2', image: 'u/prod-ap.svg', banner: 'u/banner-wireless.svg', video: '',
+        images: ['u/prod-ap.svg'],
+        features: ['دوباند ۲.۴ و ۵ گیگاهرتز', 'نصب سقفی', 'PoE', 'مدیریت متمرکز', 'مناسب فضای پرتراکم'],
+        featured: false, specialOffer: false, order: 6, tags: ['وایرلس', 'اکسس پوینت'], createdAt: t, blocks: []
+      }
     ],
     provinces: [
       { id: 'pv1', name: 'تهران', allCities: false, cities: [{ name: 'تهران', active: true }, { name: 'شهریار', active: true }, { name: 'اسلامشهر', active: true }, { name: 'ورامین', active: false }] },
@@ -227,7 +286,7 @@ function seed() {
         ]
       }
     ],
-    meta: { createdAt: t, version: 1 }
+    meta: { createdAt: t, version: 2 }
   };
 }
 

@@ -1,8 +1,8 @@
 (function () {
   'use strict';
 
-  var BRAND_MARK = '/assets/images/azadi-mark.webp';
-  var BRAND_ART = '/assets/images/azadi-brand.webp';
+  var BRAND_MARK = '/assets/images/azadi-mark.png';
+  var BRAND_ART = '/assets/images/azadi-brand.png';
 
   var state = {
     data: null,
@@ -170,6 +170,14 @@
     return '';
   }
 
+  function commerce() {
+    var c = (state.data && state.data.settings && state.data.settings.commerce) || {};
+    return {
+      priceText: c.priceText || 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.',
+      buyButtonText: c.buyButtonText || 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.'
+    };
+  }
+
   function mediaImg(ref, alt, cls) {
     var u = mediaUrl(ref);
     if (!u) return '<div class="media-shell ' + (cls || '') + '"></div>';
@@ -239,63 +247,10 @@
     document.querySelectorAll('.reveal').forEach(function (n) { revealObserver.observe(n); });
   }
 
-  var snap = { on: false, busy: false, secs: [], touchY: null, bound: false };
+  var snap = { on: false, busy: false, secs: [], timer: null, bound: false };
 
   function snapSections() {
     snap.secs = Array.prototype.slice.call(document.querySelectorAll('main > .section, main > .hero, .site-footer'));
-  }
-
-  function snapIndex() {
-    var y = window.scrollY;
-    var best = 0, bestD = Infinity;
-    for (var i = 0; i < snap.secs.length; i++) {
-      var d = Math.abs(snap.secs[i].offsetTop - y);
-      if (d < bestD) { bestD = d; best = i; }
-    }
-    return best;
-  }
-
-  function snapTo(y) {
-    snap.busy = true;
-    var start = window.scrollY;
-    var dist = y - start;
-    var t0 = null;
-    var dur = 620;
-    function step(ts) {
-      if (t0 == null) t0 = ts;
-      var p = Math.min(1, (ts - t0) / dur);
-      var e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-      window.scrollTo(0, start + dist * e);
-      if (p < 1) requestAnimationFrame(step);
-      else setTimeout(function () { snap.busy = false; }, 90);
-    }
-    requestAnimationFrame(step);
-  }
-
-  function snapStep(dir) {
-    if (snap.busy || !snap.secs.length) return;
-    var vh = window.innerHeight;
-    var y = window.scrollY;
-    var idx = snapIndex();
-    var cur = snap.secs[idx];
-    var curTop = cur.offsetTop;
-    var curBottom = curTop + cur.offsetHeight;
-    var target;
-    if (dir > 0) {
-      if (cur.classList.contains('hero') && window.innerWidth > 760 && idx < snap.secs.length - 1) target = snap.secs[idx + 1].offsetTop;
-      else if (curBottom > y + vh + 70) target = Math.min(y + vh * 0.85, curBottom - vh);
-      else if (idx < snap.secs.length - 1) target = snap.secs[idx + 1].offsetTop;
-      else return;
-    } else {
-      if (curTop < y - 70) target = Math.max(y - vh * 0.85, curTop);
-      else if (idx > 0) {
-        var prev = snap.secs[idx - 1];
-        var pb = prev.offsetTop + prev.offsetHeight;
-        target = pb > prev.offsetTop + vh ? pb - vh : prev.offsetTop;
-      }
-      else return;
-    }
-    snapTo(target);
   }
 
   function overlayOpen() {
@@ -304,53 +259,90 @@
     return (lb && !lb.hidden) || (sv && !sv.hidden) || document.body.style.overflow === 'hidden';
   }
 
+  function nearestIdleTarget() {
+    var y = window.scrollY;
+    var vh = window.innerHeight;
+    var bestTop = 0, bestD = Infinity;
+    var i, sec, top, h;
+    for (i = 0; i < snap.secs.length; i++) {
+      sec = snap.secs[i];
+      top = sec.offsetTop;
+      h = sec.offsetHeight;
+      if (h > vh + 80 && y > top + 80 && (y + vh) < (top + h - 80)) return null;
+      var d = Math.abs(top - y);
+      if (d < bestD) { bestD = d; bestTop = top; }
+    }
+    if (bestD < 56) return null;
+    return bestTop;
+  }
+
+  function cancelSnap() {
+    snap.on = false;
+    snap.busy = false;
+    if (snap.timer) { clearTimeout(snap.timer); snap.timer = null; }
+    try { window.scrollTo({ top: window.scrollY || 0, behavior: 'auto' }); } catch (e) {}
+  }
+
+  function snapTo(y) {
+    snap.busy = true;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.scrollTo(0, y);
+      snap.busy = false;
+      return;
+    }
+    try {
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    } catch (e) {
+      window.scrollTo(0, y);
+    }
+    setTimeout(function () { snap.busy = false; }, 480);
+  }
+
+  function armIdleSnap() {
+    if (snap.timer) clearTimeout(snap.timer);
+    snap.timer = setTimeout(function () {
+      if (!snap.on || overlayOpen() || snap.busy) return;
+      snapSections();
+      var t = nearestIdleTarget();
+      if (t != null) snapTo(t);
+    }, 1500);
+  }
+
   function setupSnapScroll() {
     snapSections();
     snap.on = true;
     if (snap.bound) return;
     snap.bound = true;
-    window.addEventListener('wheel', function (e) {
-      if (!snap.on || overlayOpen()) return;
-      if (Math.abs(e.deltaY) < 4) return;
-      e.preventDefault();
-      if (!snap.busy) snapStep(e.deltaY > 0 ? 1 : -1);
-    }, { passive: false });
-    window.addEventListener('keydown', function (e) {
-      if (!snap.on || overlayOpen()) return;
-      var t = e.target;
-      if (t && /INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
-      if (e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) { e.preventDefault(); snapStep(1); }
-      else if (e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) { e.preventDefault(); snapStep(-1); }
-      else if (e.key === 'Home') { e.preventDefault(); snapTo(0); }
-      else if (e.key === 'End') { e.preventDefault(); var l = snap.secs[snap.secs.length - 1]; if (l) snapTo(l.offsetTop); }
-    });
-    window.addEventListener('touchstart', function (e) {
-      if (!snap.on || overlayOpen()) return;
-      snap.touchY = e.touches[0].clientY;
+    window.addEventListener('scroll', function () {
+      if (!snap.on || snap.busy) return;
+      armIdleSnap();
     }, { passive: true });
-    window.addEventListener('touchmove', function (e) {
+    window.addEventListener('wheel', function () {
       if (!snap.on || overlayOpen()) return;
-      if (e.target.closest('.stories-row, .province-cities, .lb-stage, .suggest-panel')) return;
-      e.preventDefault();
-    }, { passive: false });
-    window.addEventListener('touchend', function (e) {
-      if (!snap.on || overlayOpen() || snap.touchY == null) return;
-      var dy = snap.touchY - e.changedTouches[0].clientY;
-      snap.touchY = null;
-      if (Math.abs(dy) > 46) snapStep(dy > 0 ? 1 : -1);
+      armIdleSnap();
+    }, { passive: true });
+    window.addEventListener('touchend', function () {
+      if (!snap.on || overlayOpen()) return;
+      armIdleSnap();
     }, { passive: true });
   }
 
   function setupTilt() {
     if (window.matchMedia('(hover: none)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     document.querySelectorAll('.svc-card, .prod-card, .work-card, .article-card, .stat-box').forEach(function (c) {
       c.classList.add('tilt');
+      var raf = 0;
       c.addEventListener('pointermove', function (e) {
-        if (!c.classList.contains('vis') && c.classList.contains('reveal')) return;
-        var r = c.getBoundingClientRect();
-        var rx = ((e.clientY - r.top) / r.height - 0.5) * -7;
-        var ry = ((e.clientX - r.left) / r.width - 0.5) * 7;
-        c.style.transform = 'perspective(900px) rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg) translateY(-4px)';
+        if (raf) return;
+        raf = requestAnimationFrame(function () {
+          raf = 0;
+          if (!c.classList.contains('vis') && c.classList.contains('reveal')) return;
+          var r = c.getBoundingClientRect();
+          var rx = ((e.clientY - r.top) / r.height - 0.5) * -5;
+          var ry = ((e.clientX - r.left) / r.width - 0.5) * 5;
+          c.style.transform = 'perspective(900px) rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg) translateY(-4px)';
+        });
       });
       c.addEventListener('pointerleave', function () {
         c.style.transform = '';
@@ -433,7 +425,7 @@
   }
 
   function shell(inner) {
-    snap.on = false;
+    cancelSnap();
     app.innerHTML = headerHtml() + '<main>' + inner + '</main>' + footerHtml() + bottomNavHtml();
     var burger = document.querySelector('[data-burger]');
     var mob = document.querySelector('.mobile-nav');
@@ -500,7 +492,7 @@
               var pr = b.getAttribute('data-gsr').split(':');
               track('suggest', pr[0] + ':' + pr[1]);
               close();
-              if (pr[0] === 'product') navigate('/contact?product=' + encodeURIComponent(pr[1]));
+              if (pr[0] === 'product') navigate('/product/' + encodeURIComponent(pr[1]));
               else navigate('/portfolio/' + encodeURIComponent(pr[1]));
             });
           });
@@ -523,7 +515,7 @@
     function resize() {
       W = canvas.width = window.innerWidth;
       H = canvas.height = window.innerHeight;
-      var count = Math.min(110, Math.max(36, Math.floor(W * H / 20000)));
+      var count = Math.min(42, Math.max(16, Math.floor(W * H / 55000)));
       nodes = [];
       for (var i = 0; i < count; i++) {
         var depth = Math.random() * 0.7 + 0.3;
@@ -557,9 +549,17 @@
       pulses.push({ a: a, b: b, t: 0 });
       if (pulses.length > 6) pulses.shift();
     }
-    setInterval(spawnPulse, 1400);
+    setInterval(spawnPulse, 1800);
 
-    function frame() {
+    var hidden = document.hidden;
+    document.addEventListener('visibilitychange', function () { hidden = document.hidden; });
+    var lastFrame = 0;
+
+    function frame(ts) {
+      requestAnimationFrame(frame);
+      if (hidden) return;
+      if (ts - lastFrame < 32) return;
+      lastFrame = ts;
       ctx.clearRect(0, 0, W, H);
       mouse.x += (mouse.tx - mouse.x) * 0.12;
       mouse.y += (mouse.ty - mouse.y) * 0.12;
@@ -631,7 +631,6 @@
         ctx.arc(mouse.x, mouse.y, 130, 0, Math.PI * 2);
         ctx.fill();
       }
-      requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
   }
@@ -664,28 +663,30 @@
           '<div class="hero-brand"><div class="brand-orbit orbit-a"></div><div class="brand-orbit orbit-b"></div><div class="brand-hud hud-a" aria-hidden="true">SECURE NODE // 01</div><div class="brand-hud hud-b" aria-hidden="true">SYSTEM ONLINE</div><div class="brand-core"><img src="' + BRAND_ART + '" alt="" width="900" height="900" decoding="async" fetchpriority="high"></div></div>' +
           '</div><div class="hero-scroll">' + ICONS.chevDown + '</div></section>');
       }
-      if (key === 'stories' && sm.stories.enabled && d.stories.length) {
-        var bubbles = d.stories.map(function (st, i) {
-          var thumb = st.type === 'product' ? productImage(st.productId) || st.media : st.media;
-          return '<button class="story-bubble reveal" data-story="' + i + '" data-track="story:' + esc(st.id) + '">' +
-            '<span class="story-ring"><span class="story-ring-inner">' + mediaImg(thumb, st.title) + '</span></span>' +
-            '<span class="story-name">' + esc(st.title) + '</span></button>';
-        }).join('');
-        parts.push('<section class="section" id="stories"><div class="container">' +
-          sectionHead(sm.stories) + '<div class="stories-row">' + bubbles + '</div></div></section>');
-      }
-      if (key === 'banner' && s.banner.enabled) {
-        var bImgs = d.products.filter(function (p) { return p.image; }).slice(0, 3).map(function (p, bi) {
-          return '<div class="banner-img bi-' + bi + ' reveal">' + mediaImg(p.image, p.name) + '</div>';
-        }).join('');
-        parts.push('<section class="section" id="banner"><div class="container">' +
-          '<div class="banner-hero reveal">' +
-          '<div class="banner-imgs">' + bImgs + '</div>' +
-          '<div class="banner-copy">' +
-          '<span class="banner-kicker">AZADI NETWORK</span>' +
-          '<span class="banner-text">' + esc(s.banner.text) + '</span>' +
-          '<a class="btn btn-primary" href="' + esc(s.banner.buttonUrl) + '" data-nav data-track="cta:banner">' + esc(s.banner.buttonLabel) + '</a>' +
-          '</div></div></div></section>');
+      if (key === 'stories' && ((sm.stories && sm.stories.enabled !== false && d.stories.length) || (d.banners && d.banners.length))) {
+        var storiesBlock = '';
+        if (sm.stories && sm.stories.enabled !== false && d.stories.length) {
+          var bubbles = d.stories.map(function (st, i) {
+            var thumb = st.type === 'product' ? productImage(st.productId) || st.media : st.media;
+            return '<button class="story-bubble reveal" data-story="' + i + '" data-track="story:' + esc(st.id) + '">' +
+              '<span class="story-ring"><span class="story-ring-inner">' + mediaImg(thumb, st.title) + '</span></span>' +
+              '<span class="story-name">' + esc(st.title) + '</span></button>';
+          }).join('');
+          storiesBlock = sectionHead(sm.stories) + '<div class="stories-row">' + bubbles + '</div>';
+        }
+        var adsBlock = '';
+        if (d.banners && d.banners.length) {
+          adsBlock = '<div class="ad-rail-wrap">' +
+            '<div class="ad-rail" data-ad-rail>' +
+            d.banners.map(function (bn) {
+              return '<a class="ad-slide" href="' + esc(bn.url || '#') + '" data-nav data-track="banner:' + esc(bn.id) + '">' +
+                mediaImg(bn.image, bn.title) +
+                '<span class="ad-copy"><b>' + esc(bn.title) + '</b>' +
+                (bn.subtitle ? '<small>' + esc(bn.subtitle) + '</small>' : '') +
+                '</span></a>';
+            }).join('') + '</div></div>';
+        }
+        parts.push('<section class="section" id="stories"><div class="container">' + storiesBlock + adsBlock + '</div></section>');
       }
       if (key === 'services' && sm.services.enabled && d.services.length) {
         var svc = d.services.map(function (sv) {
@@ -715,17 +716,39 @@
           '</div></section>');
       }
       if (key === 'provinces' && sm.provinces.enabled && d.provinces.length) {
-        var provs = d.provinces.map(function (p, i) {
+        var provs = d.provinces.map(function (p) {
           var chips = (p.cities || []).map(function (c) {
-            return '<span class="city-chip' + (c.active ? ' on' : '') + '">' + esc(c.name) + '</span>';
+            return '<span class="city-chip' + (c.active ? ' on' : ' off') + '">' + esc(c.name) + '</span>';
           }).join('');
           if (p.allCities) chips = '<span class="city-chip all">همه شهرهای این استان</span>' + chips;
-          return '<div class="province-card reveal" data-prov="' + i + '">' +
-            '<button class="province-head" data-track="province:' + esc(p.name) + '"><span>' + esc(p.name) + '</span><span class="pv-arrow">' + ICONS.chevDown + '</span></button>' +
+          return '<div class="province-card open reveal">' +
+            '<div class="province-head"><span>' + esc(p.name) + '</span></div>' +
             '<div class="province-cities">' + chips + '</div></div>';
         }).join('');
         parts.push('<section class="section" id="provinces"><div class="container">' +
           sectionHead(sm.provinces) + '<div class="province-grid">' + provs + '</div></div></section>');
+      }
+      if (key === 'offers' && sm.offers && sm.offers.enabled !== false) {
+        var offerProds = d.products.filter(function (p) { return p.specialOffer; }).slice(0, 8);
+        var promo = '';
+        if (s.banner && s.banner.enabled) {
+          var bImgs = d.products.filter(function (p) { return p.image; }).slice(0, 3).map(function (p, bi) {
+            return '<div class="banner-img bi-' + bi + ' reveal">' + mediaImg(p.image, p.name) + '</div>';
+          }).join('');
+          promo = '<div class="banner-hero reveal">' +
+            '<div class="banner-imgs">' + bImgs + '</div>' +
+            '<div class="banner-copy">' +
+            '<span class="banner-kicker">AZADI NETWORK</span>' +
+            '<span class="banner-text">' + esc(s.banner.text) + '</span>' +
+            '<a class="btn btn-primary" href="' + esc(s.banner.buttonUrl) + '" data-nav data-track="cta:banner">' + esc(s.banner.buttonLabel) + '</a>' +
+            '</div></div>';
+        }
+        if (promo || offerProds.length) {
+          parts.push('<section class="section" id="offers"><div class="container">' +
+            sectionHead(sm.offers) + promo +
+            (offerProds.length ? '<div class="cards-grid" style="margin-top:28px">' + offerProds.map(productCard).join('') + '</div>' : '') +
+            '</div></section>');
+        }
       }
       if (key === 'stats' && sm.stats.enabled && s.stats.length) {
         var stats = s.stats.map(function (st) {
@@ -762,17 +785,50 @@
         openStories(Number(b.getAttribute('data-story')));
       });
     });
-    document.querySelectorAll('.province-head').forEach(function (b) {
-      b.addEventListener('click', function () {
-        b.parentElement.classList.toggle('open');
-      });
-    });
     document.querySelectorAll('.faq-q').forEach(function (b) {
       b.addEventListener('click', function () {
         b.parentElement.classList.toggle('open');
       });
     });
+    bindAdRail();
     bindCards();
+  }
+
+  function bindAdRail() {
+    var rail = document.querySelector('[data-ad-rail]');
+    if (!rail) return;
+    var down = false, startX = 0, lastX = 0, moved = false, capId = null;
+    rail.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      down = true;
+      moved = false;
+      startX = e.clientX;
+      lastX = e.clientX;
+      capId = null;
+    });
+    rail.addEventListener('pointermove', function (e) {
+      if (!down) return;
+      if (!moved && Math.abs(e.clientX - startX) > 12) {
+        moved = true;
+        try { rail.setPointerCapture(e.pointerId); capId = e.pointerId; } catch (err) {}
+      }
+      if (!moved) return;
+      rail.scrollBy({ left: -(e.clientX - lastX), top: 0 });
+      lastX = e.clientX;
+    });
+    function endDrag(e) {
+      down = false;
+      if (capId != null) {
+        try { rail.releasePointerCapture(capId); } catch (err) {}
+        capId = null;
+      }
+    }
+    rail.addEventListener('pointerup', endDrag);
+    rail.addEventListener('pointercancel', endDrag);
+    rail.addEventListener('click', function (e) {
+      if (moved) { e.preventDefault(); e.stopPropagation(); }
+      moved = false;
+    }, true);
   }
 
   function productImage(pid) {
@@ -790,7 +846,7 @@
       '<span class="prod-cat">' + esc(catName(p.category)) + '</span>' +
       '<span class="prod-name">' + esc(p.name) + '</span>' +
       '<span class="prod-desc">' + esc(p.desc) + '</span>' +
-      '<span class="prod-price">' + ICONS.chat + '<span>برای مطلع شدن از قیمت در بله یا واتساپ پیام بدهید</span></span>' +
+      '<span class="prod-price">' + ICONS.chat + '<span>' + esc(commerce().priceText) + '</span></span>' +
       '</div></div>';
   }
 
@@ -845,7 +901,7 @@
         var p = state.data.products.filter(function (x) { return x.id === id; })[0];
         var cid = p ? p.category : '';
         if (cid) track('view', 'category:' + cid);
-        navigate('/contact?product=' + encodeURIComponent(id));
+        navigate('/product/' + encodeURIComponent(id));
       });
     });
     document.querySelectorAll('[data-work]').forEach(function (c) {
@@ -887,7 +943,7 @@
       }).join('');
       var cta = '';
       if (st.type === 'product' && st.productId) {
-        cta = '<a class="btn btn-primary story-cta" href="/contact?product=' + encodeURIComponent(st.productId) + '" data-nav data-track="story-cta:' + esc(st.productId) + '">استعلام قیمت این محصول</a>';
+        cta = '<a class="btn btn-primary story-cta" href="/product/' + encodeURIComponent(st.productId) + '" data-nav data-track="story-cta:' + esc(st.productId) + '">مشاهده محصول</a>';
       }
       viewer.innerHTML = '<div class="story-frame">' + mediaHtml +
         '<div class="story-progress">' + prog + '</div>' +
@@ -1027,6 +1083,74 @@
     render();
   }
 
+  function renderProduct(id) {
+    track('view', 'product:' + id);
+    function draw(p) {
+      var cm = commerce();
+      var savedOn = isSaved('product', p.id);
+      if (p.category) track('view', 'category:' + p.category);
+      var gallery = [];
+      if (p.image) gallery.push(p.image);
+      (p.images || []).forEach(function (im) {
+        if (im && gallery.indexOf(im) === -1) gallery.push(im);
+      });
+      var mainSrc = gallery[0] || p.banner || p.image;
+      var thumbs = gallery.map(function (src, i) {
+        return '<button type="button" class="pgal-item' + (i === 0 ? ' on' : '') + '" data-pgal="' + i + '">' + mediaImg(src, p.name) + '</button>';
+      }).join('');
+      var feats = (p.features || []).map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('');
+      var extra = blocksHtml(p.blocks);
+      var video = p.video
+        ? '<div class="p-video reveal vis"><video src="' + esc(mediaUrl(p.video)) + '" controls playsinline controlslist="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false"></video></div>'
+        : '';
+      shell('<div class="product-page detail-wrap page-hero">' +
+        (p.banner ? '<div class="p-banner reveal vis">' + mediaImg(p.banner, p.name) + '</div>' : '') +
+        '<div class="p-layout">' +
+        '<div class="p-gallery">' +
+        '<div class="p-main" data-pmain>' + mediaImg(mainSrc, p.name) + '</div>' +
+        (thumbs ? '<div class="pgal-row">' + thumbs + '</div>' : '') +
+        '</div>' +
+        '<div class="p-info reveal vis">' +
+        '<div class="detail-meta"><span class="meta-pill" dir="ltr">' + esc(p.code) + '</span>' +
+        '<span class="meta-pill">' + esc(catName(p.category)) + '</span>' +
+        (p.specialOffer ? '<span class="meta-pill offer">پیشنهاد ویژه</span>' : '') + '</div>' +
+        '<h1 class="detail-title">' + esc(p.name) + '</h1>' +
+        '<p class="detail-desc">' + esc(p.desc) + '</p>' +
+        (p.details ? '<p class="p-details">' + esc(p.details) + '</p>' : '') +
+        (feats ? '<ul class="p-features">' + feats + '</ul>' : '') +
+        '<div class="p-commerce">' +
+        '<div class="prod-price p-price-note">' + ICONS.chat + '<span>' + esc(cm.priceText) + '</span></div>' +
+        '<a class="btn btn-primary p-buy" href="/contact?product=' + encodeURIComponent(p.id) + '" data-nav data-track="cta:product-buy">' + esc(cm.buyButtonText) + '</a>' +
+        '<button class="btn btn-ghost" data-fav-detail>' + (savedOn ? ICONS.starFill : ICONS.star) + '<span>' + (savedOn ? 'نشان شده' : 'نشان کردن') + '</span></button>' +
+        '</div></div></div>' +
+        video +
+        (extra ? '<div class="content-blocks">' + extra + '</div>' : '') +
+        '<div style="margin-top:40px"><a class="btn btn-ghost" href="/shop" data-nav>بازگشت به فروشگاه</a></div>' +
+        '</div>');
+      document.querySelectorAll('[data-pgal]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var i = Number(b.getAttribute('data-pgal'));
+          var main = document.querySelector('[data-pmain]');
+          if (main) main.innerHTML = mediaImg(gallery[i], p.name);
+          document.querySelectorAll('[data-pgal]').forEach(function (x) { x.classList.toggle('on', x === b); });
+        });
+      });
+      var fb = document.querySelector('[data-fav-detail]');
+      if (fb) fb.addEventListener('click', function () {
+        toggleSaved('product', p.id, p.name, p.image);
+        var on = isSaved('product', p.id);
+        fb.innerHTML = (on ? ICONS.starFill : ICONS.star) + '<span>' + (on ? 'نشان شده' : 'نشان کردن') + '</span>';
+      });
+      setupReveal();
+    }
+    var local = ((state.data && state.data.products) || []).filter(function (x) { return x.id === id; })[0];
+    if (local) { draw(local); return; }
+    shell('<div class="detail-wrap page-hero"><div class="skeleton" style="height:280px"></div></div>');
+    fetchJson('/api/public/product/' + encodeURIComponent(id)).then(draw).catch(function () {
+      shell('<div class="container page-hero"><div class="empty-note">محصول یافت نشد</div></div>');
+    });
+  }
+
   function renderShop(params) {
     var d = state.data;
     var activeCat = params.get('cat') || '';
@@ -1037,7 +1161,7 @@
         return '<button class="chip' + (activeCat === c.slug ? ' on' : '') + '" data-cat="' + esc(c.slug) + '" data-track="filter:' + esc(c.name) + '">' + esc(c.name) + '</button>';
       }).join('');
 
-    shell('<div class="page-hero container">' + sectionHead({ title: 'فروشگاه محصولات', subtitle: 'جستجو با نام یا کد محصول — برای مطلع شدن از قیمت در بله یا واتساپ پیام بدهید' }) + '</div>' +
+    shell('<div class="page-hero container">' + sectionHead({ title: 'فروشگاه محصولات', subtitle: 'جستجو با نام یا کد محصول — ' + commerce().priceText }) + '</div>' +
       '<div class="container" style="padding-bottom:90px">' +
       '<div class="toolbar">' +
       '<div class="search-box">' + ICONS.search + '<input type="search" data-shop-search placeholder="جستجوی نام یا کد محصول..." value="' + esc(q) + '" maxlength="80"><div class="suggest-panel" data-suggest hidden></div></div>' +
@@ -1095,7 +1219,7 @@
             b.addEventListener('click', function () {
               var id = b.getAttribute('data-sg');
               track('suggest', 'product:' + id);
-              navigate('/contact?product=' + encodeURIComponent(id));
+              navigate('/product/' + encodeURIComponent(id));
             });
           });
         }).catch(function () {});
@@ -1355,7 +1479,7 @@
     document.querySelectorAll('[data-saved-item]').forEach(function (c) {
       c.addEventListener('click', function () {
         var parts = c.getAttribute('data-saved-item').split(':');
-        if (parts[0] === 'product') navigate('/contact?product=' + encodeURIComponent(parts[1]));
+        if (parts[0] === 'product') navigate('/product/' + encodeURIComponent(parts[1]));
         else navigate('/portfolio/' + encodeURIComponent(parts[1]));
       });
     });
@@ -1373,6 +1497,7 @@
     else if (path.indexOf('/portfolio/') === 0) renderWorkDetail(path.slice(11));
     else if (path === '/articles') renderArticles();
     else if (path.indexOf('/articles/') === 0) renderArticleDetail(path.slice(10));
+    else if (path.indexOf('/product/') === 0) renderProduct(path.slice(9));
     else if (path === '/contact') renderContact(params);
     else if (path === '/saved') renderSaved();
     else renderHome();

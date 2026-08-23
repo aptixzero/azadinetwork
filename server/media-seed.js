@@ -63,6 +63,10 @@ function ensureSeedMedia() {
   make('work-cctv2.svg', 1000, 640, '#0a1826', '#125e86', 'جزئیات نصب', 'WK-3001', circuit(1000, 640));
   make('work-wireless.svg', 1000, 640, '#0a2018', '#14684d', 'لینک وایرلس', 'WK-3002', circuit(1000, 640));
   make('work-server.svg', 1000, 640, '#160c22', '#4b2775', 'اتاق سرور', 'WK-3003', circuit(1000, 640));
+  make('banner-cctv.svg', 1600, 500, '#061018', '#0c4a72', 'CCTV SMART', 'نظارت تصویری هوشمند', circuit(1600, 500));
+  make('banner-wireless.svg', 1600, 500, '#06140e', '#0d5a3c', 'WIRELESS LINK', 'لینک پایدار نقطه به نقطه', circuit(1600, 500));
+  make('banner-server.svg', 1600, 500, '#120816', '#3d1a66', 'SERVER ROOM', 'اتاق سرور استاندارد', circuit(1600, 500));
+  make('banner-net.svg', 1600, 500, '#0a101c', '#163a6a', 'SECURE NET', 'شبکه سازمانی امن', circuit(1600, 500));
 }
 
 module.exports = { ensureSeedMedia: ensureSeedMedia };

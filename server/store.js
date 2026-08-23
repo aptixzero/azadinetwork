@@ -51,11 +51,61 @@ function getSecret() {
   return secret;
 }
 
+function migrate(next) {
+  if (!next || !next.settings) return next;
+  var s = next.settings;
+  if (!s.commerce) {
+    s.commerce = {
+      priceText: 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.',
+      buyButtonText: 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.'
+    };
+  }
+  if (!s.commerce.priceText) s.commerce.priceText = 'جهت خرید یا اطلاع از قیمت در صفحه ارتباط با ما بهمون پیغام دهید.';
+  if (!s.commerce.buyButtonText) s.commerce.buyButtonText = s.commerce.priceText;
+  if (!s.sectionsMeta) s.sectionsMeta = {};
+  if (!s.sectionsMeta.offers) {
+    s.sectionsMeta.offers = { enabled: true, title: 'پیشنهاد ویژه', subtitle: 'فرصت‌های منتخب این هفته' };
+  }
+  var wanted = ['hero', 'stories', 'services', 'products', 'portfolioHome', 'provinces', 'articles', 'offers', 'stats', 'faq'];
+  var ver = (next.meta && next.meta.version) || 1;
+  if (ver < 2) {
+    s.sectionOrder = wanted.slice();
+    if (!next.meta) next.meta = {};
+    next.meta.version = 2;
+  } else {
+    s.sectionOrder = (Array.isArray(s.sectionOrder) ? s.sectionOrder : []).filter(function (k) {
+      return wanted.indexOf(k) !== -1;
+    });
+    wanted.forEach(function (k) { if (s.sectionOrder.indexOf(k) === -1) s.sectionOrder.push(k); });
+  }
+  if (!Array.isArray(next.banners)) {
+    next.banners = [
+      { id: 'bn1', title: 'نظارت تصویری هوشمند', subtitle: 'دوربین و NVR سازمانی', image: 'u/banner-cctv.svg', url: '/shop?cat=cctv', order: 1, enabled: true },
+      { id: 'bn2', title: 'لینک وایرلس پایدار', subtitle: 'ارتباط نقطه به نقطه تا ۲۰ کیلومتر', image: 'u/banner-wireless.svg', url: '/shop?cat=wireless', order: 2, enabled: true },
+      { id: 'bn3', title: 'اتاق سرور استاندارد', subtitle: 'رک، UPS و خنک‌سازی حرفه‌ای', image: 'u/banner-server.svg', url: '/portfolio', order: 3, enabled: true },
+      { id: 'bn4', title: 'شبکه سازمانی امن', subtitle: 'سوییچ، فایروال و پشتیبانی ۲۴/۷', image: 'u/banner-net.svg', url: '/contact', order: 4, enabled: true }
+    ];
+  }
+  (next.products || []).forEach(function (p) {
+    if (!Array.isArray(p.images)) p.images = p.image ? [p.image] : [];
+    if (!p.video) p.video = '';
+    if (!p.banner) p.banner = '';
+    if (!Array.isArray(p.features)) p.features = [];
+    if (!p.details) p.details = '';
+    if (!Array.isArray(p.blocks)) p.blocks = [];
+    if (p.specialOffer == null) p.specialOffer = false;
+  });
+  return next;
+}
+
 function init(seedFn) {
   ensureDirs();
   db = loadJson(DB_FILE, null);
   if (!db || !db.settings) {
     db = seedFn();
+    saveDbNow();
+  } else {
+    db = migrate(db);
     saveDbNow();
   }
   track = loadJson(TRACK_FILE, null);

@@ -131,6 +131,7 @@
     { id: 'stories', label: 'استوری‌ها', icon: 'story' },
     { id: 'services', label: 'خدمات', icon: 'svc' },
     { id: 'products', label: 'محصولات', icon: 'box' },
+    { id: 'banners', label: 'بنرهای تبلیغاتی', icon: 'media' },
     { id: 'provinces', label: 'استان‌ها', icon: 'map' },
     { id: 'articles', label: 'مقالات و آموزش', icon: 'article' },
     { id: 'portfolio', label: 'نمونه کارها', icon: 'work' },
@@ -443,6 +444,7 @@
     var root = appEl.querySelector('[data-content-root]');
 
     function secMetaCard(key, name) {
+      if (!s.sectionsMeta[key]) s.sectionsMeta[key] = { enabled: true, title: name, subtitle: '' };
       var m = s.sectionsMeta[key];
       return '<div class="card"><div class="card-title">سکشن: ' + esc(name) + '</div>' +
         '<div class="form-grid">' +
@@ -470,13 +472,18 @@
       inputField('متن دکمه', s.banner.buttonLabel, 'data-b="buttonLabel" maxlength="80"') +
       inputField('لینک دکمه', s.banner.buttonUrl, 'data-b="buttonUrl" maxlength="300" dir="ltr"') +
       '</div></div>' +
+      '<div class="card"><div class="card-title">متن قیمت و دکمه خرید</div><div class="form-grid">' +
+      '<div class="full"><label>متن قیمت (غیرفعال)</label><textarea data-cm="priceText" maxlength="300">' + esc((s.commerce && s.commerce.priceText) || '') + '</textarea></div>' +
+      '<div class="full"><label>متن دکمه خرید (غیرفعال)</label><textarea data-cm="buyButtonText" maxlength="300">' + esc((s.commerce && s.commerce.buyButtonText) || '') + '</textarea></div>' +
+      '</div></div>' +
       secMetaCard('stories', 'استوری‌ها') +
       secMetaCard('services', 'خدمات') +
       secMetaCard('products', 'محصولات پرفروش') +
       secMetaCard('portfolioHome', 'نمونه کارهای صفحه اصلی') +
       secMetaCard('provinces', 'استان‌ها') +
-      secMetaCard('stats', 'آمار') +
       secMetaCard('articles', 'مقالات') +
+      secMetaCard('offers', 'پیشنهاد ویژه') +
+      secMetaCard('stats', 'آمار') +
       secMetaCard('faq', 'سوالات متداول') +
       '<div class="card"><div class="card-title">آمار (اعداد صفحه اصلی)</div><div data-stats-list></div>' +
       '<button class="btn btn-ghost btn-sm" data-add-stat>افزودن آمار</button></div>' +
@@ -630,10 +637,17 @@
     root.querySelectorAll('[data-sm]').forEach(function (inp) {
       var f = function () {
         var p = inp.getAttribute('data-sm').split('.');
+        if (!s.sectionsMeta[p[0]]) s.sectionsMeta[p[0]] = { enabled: true, title: '', subtitle: '' };
         s.sectionsMeta[p[0]][p[1]] = inp.type === 'checkbox' ? inp.checked : inp.value;
       };
       inp.addEventListener('input', f);
       inp.addEventListener('change', f);
+    });
+    if (!s.commerce) s.commerce = { priceText: '', buyButtonText: '' };
+    root.querySelectorAll('[data-cm]').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        s.commerce[inp.getAttribute('data-cm')] = inp.value;
+      });
     });
     root.querySelectorAll('[data-f]').forEach(function (inp) {
       inp.addEventListener('input', function () {
@@ -832,7 +846,8 @@
       row: function (p) {
         return '<div class="item-row">' + thumb(p.image) +
           '<div class="item-main"><div class="item-title">' + esc(p.name) +
-          (p.featured ? ' <span class="pill pill-info">پرفروش</span>' : '') + '</div>' +
+          (p.featured ? ' <span class="pill pill-info">پرفروش</span>' : '') +
+          (p.specialOffer ? ' <span class="pill pill-ok">ویژه</span>' : '') + '</div>' +
           '<div class="item-sub">کد: <span class="mono">' + esc(p.code) + '</span></div></div>' +
           '<div class="item-actions"><button class="btn btn-ghost btn-sm" data-edit="' + esc(p.id) + '">ویرایش</button>' +
           '<button class="btn btn-danger btn-sm" data-del="' + esc(p.id) + '">حذف</button></div></div>';
@@ -878,12 +893,28 @@
   }
 
   function productEditor(item, opts) {
-    var p = item ? JSON.parse(JSON.stringify(item)) : { id: '', code: '', name: '', desc: '', category: '', image: '', images: [], featured: false, order: 0, tags: [] };
+    var p = item ? JSON.parse(JSON.stringify(item)) : {
+      id: '', code: '', name: '', desc: '', details: '', category: '',
+      image: '', banner: '', video: '', images: [], features: [],
+      featured: false, specialOffer: false, order: 0, tags: [], blocks: []
+    };
+    if (!Array.isArray(p.images)) p.images = p.image ? [p.image] : [];
+    if (!Array.isArray(p.features)) p.features = [];
+    if (!p.details) p.details = '';
+    if (!p.banner) p.banner = '';
+    if (!p.video) p.video = '';
     p._existing = !!item;
     api('GET', '/api/admin/categories').then(function (cats) {
       var catOpts = '<option value="">- بدون دسته -</option>' + cats.map(function (c) {
         return '<option value="' + esc(c.id) + '"' + (p.category === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>';
       }).join('');
+      function galleryHtml() {
+        return (p.images || []).map(function (im, i) {
+          return '<div class="item-row">' + thumb(im) +
+            '<div class="item-main mono" style="font-size:0.8em">' + esc(im) + '</div>' +
+            '<div class="item-actions"><button type="button" class="btn btn-danger btn-sm" data-del-img="' + i + '">حذف</button></div></div>';
+        }).join('') || '<div style="color:var(--text2);font-size:0.85em">گالری خالی است</div>';
+      }
       var m = modal('<div class="modal-title">' + (item ? 'ویرایش محصول' : 'محصول جدید') + '</div>' +
         '<div class="form-grid">' +
         inputField('نام محصول', p.name, 'data-fld="name" maxlength="200"') +
@@ -891,28 +922,117 @@
         '<div><label>دسته‌بندی</label><select data-fld="category">' + catOpts + '</select></div>' +
         inputField('ترتیب', p.order, 'data-fld="order" type="number" min="0" dir="ltr"') +
         '<div>' + switchField('نمایش در محصولات پرفروش صفحه اصلی', p.featured, 'data-fld="featured"') + '</div>' +
+        '<div>' + switchField('پیشنهاد ویژه', p.specialOffer, 'data-fld="specialOffer"') + '</div>' +
         inputField('برچسب‌ها (با ویرگول جدا کنید)', (p.tags || []).join('، '), 'data-tags maxlength="300"') +
         '<div class="full"><label>عکس اصلی</label>' +
         '<div style="display:flex;gap:8px;align-items:center"><span data-media-thumb>' + thumb(p.image) + '</span>' +
         '<input value="' + esc(p.image) + '" data-fld="image" readonly style="flex:1" dir="ltr">' +
         '<button type="button" class="btn btn-ghost btn-sm" data-pick-main>انتخاب / آپلود</button></div></div>' +
-        '<div class="full"><label>توضیحات</label><textarea data-fld="desc" maxlength="2000">' + esc(p.desc) + '</textarea></div>' +
+        '<div class="full"><label>بنر محصول</label>' +
+        '<div style="display:flex;gap:8px;align-items:center"><span data-banner-thumb>' + thumb(p.banner) + '</span>' +
+        '<input value="' + esc(p.banner) + '" data-fld="banner" readonly style="flex:1" dir="ltr">' +
+        '<button type="button" class="btn btn-ghost btn-sm" data-pick-banner>انتخاب</button></div></div>' +
+        '<div class="full"><label>ویدیو محصول</label>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<input value="' + esc(p.video) + '" data-fld="video" readonly style="flex:1" dir="ltr">' +
+        '<button type="button" class="btn btn-ghost btn-sm" data-pick-video>انتخاب ویدیو</button></div></div>' +
+        '<div class="full"><label>گالری عکس</label><div data-gal-list>' + galleryHtml() + '</div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" data-add-img style="margin-top:8px">افزودن عکس گالری</button></div>' +
+        '<div class="full"><label>ویژگی‌ها (هر خط یک مورد)</label><textarea data-features maxlength="3000" rows="5">' + esc((p.features || []).join('\n')) + '</textarea></div>' +
+        '<div class="full"><label>توضیحات کوتاه</label><textarea data-fld="desc" maxlength="2000">' + esc(p.desc) + '</textarea></div>' +
+        '<div class="full"><label>جزئیات بیشتر</label><textarea data-fld="details" maxlength="4000">' + esc(p.details) + '</textarea></div>' +
         '</div><div class="modal-actions"><button class="btn btn-primary" data-save>ذخیره</button>' +
-        '<button class="btn btn-ghost" data-cancel>انصراف</button></div>');
+        '<button class="btn btn-ghost" data-cancel>انصراف</button></div>', 'wide');
+      function refreshGal() {
+        var box = m.querySelector('[data-gal-list]');
+        box.innerHTML = galleryHtml();
+        box.querySelectorAll('[data-del-img]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            p.images.splice(Number(b.getAttribute('data-del-img')), 1);
+            refreshGal();
+          });
+        });
+      }
+      refreshGal();
       m.querySelector('[data-pick-main]').addEventListener('click', function () {
         pickMedia(function (ref) {
           p.image = ref;
           if (p.images.indexOf(ref) === -1) p.images.push(ref);
           m.querySelector('[data-fld="image"]').value = ref;
           m.querySelector('[data-media-thumb]').innerHTML = thumb(ref);
+          refreshGal();
+        }, false);
+      });
+      m.querySelector('[data-pick-banner]').addEventListener('click', function () {
+        pickMedia(function (ref) {
+          p.banner = ref;
+          m.querySelector('[data-fld="banner"]').value = ref;
+          m.querySelector('[data-banner-thumb]').innerHTML = thumb(ref);
+        }, false);
+      });
+      m.querySelector('[data-pick-video]').addEventListener('click', function () {
+        pickMedia(function (ref) {
+          p.video = ref;
+          m.querySelector('[data-fld="video"]').value = ref;
+        }, true);
+      });
+      m.querySelector('[data-add-img]').addEventListener('click', function () {
+        pickMedia(function (ref) {
+          if (p.images.indexOf(ref) === -1) p.images.push(ref);
+          refreshGal();
         }, false);
       });
       var tagsInp = m.querySelector('[data-tags]');
       tagsInp.addEventListener('input', function () {
         p.tags = tagsInp.value.split(/[,،]/).map(function (t) { return t.trim(); }).filter(Boolean);
       });
+      var featInp = m.querySelector('[data-features]');
+      featInp.addEventListener('input', function () {
+        p.features = featInp.value.split(/\n/).map(function (t) { return t.trim(); }).filter(Boolean);
+      });
       bindEditor(m, p, function () { saveItem('products', p, function () { reloadCrud(opts); }); });
     }).catch(function () {});
+  }
+
+  function renderBanners() {
+    var opts = {
+      title: 'بنرهای تبلیغاتی', sub: 'اسلایدهای زیر استوری‌ها — کشیدن نرم چپ و راست بدون تیک',
+      addLabel: 'افزودن بنر', api: 'banners',
+      row: function (bn) {
+        return '<div class="item-row">' + thumb(bn.image) +
+          '<div class="item-main"><div class="item-title">' + esc(bn.title) +
+          (bn.enabled !== false ? ' <span class="pill pill-ok">فعال</span>' : ' <span class="pill pill-off">غیرفعال</span>') + '</div>' +
+          '<div class="item-sub">' + esc(bn.subtitle || '') + ' — ترتیب: ' + bn.order + '</div></div>' +
+          '<div class="item-actions"><button class="btn btn-ghost btn-sm" data-edit="' + esc(bn.id) + '">ویرایش</button>' +
+          '<button class="btn btn-danger btn-sm" data-del="' + esc(bn.id) + '">حذف</button></div></div>';
+      },
+      editor: function (item) {
+        var bn = item ? JSON.parse(JSON.stringify(item)) : { id: '', title: '', subtitle: '', image: '', url: '', order: 0, enabled: true };
+        bn._existing = !!item;
+        var m = modal('<div class="modal-title">' + (item ? 'ویرایش بنر' : 'بنر جدید') + '</div>' +
+          '<div class="form-grid">' +
+          inputField('عنوان', bn.title, 'data-fld="title" maxlength="120"') +
+          inputField('زیرعنوان', bn.subtitle, 'data-fld="subtitle" maxlength="200"') +
+          inputField('لینک مقصد', bn.url, 'data-fld="url" maxlength="300" dir="ltr"') +
+          inputField('ترتیب', bn.order, 'data-fld="order" type="number" min="0" dir="ltr"') +
+          '<div>' + switchField('فعال', bn.enabled, 'data-fld="enabled"') + '</div>' +
+          '<div class="full"><label>تصویر بنر</label>' +
+          '<div style="display:flex;gap:8px;align-items:center"><span data-media-thumb>' + thumb(bn.image) + '</span>' +
+          '<input value="' + esc(bn.image) + '" data-fld="image" readonly style="flex:1" dir="ltr">' +
+          '<button type="button" class="btn btn-ghost btn-sm" data-pick-main>انتخاب / آپلود</button></div></div>' +
+          '</div><div class="modal-actions"><button class="btn btn-primary" data-save>ذخیره</button>' +
+          '<button class="btn btn-ghost" data-cancel>انصراف</button></div>');
+        m.querySelector('[data-pick-main]').addEventListener('click', function () {
+          pickMedia(function (ref) {
+            bn.image = ref;
+            m.querySelector('[data-fld="image"]').value = ref;
+            m.querySelector('[data-media-thumb]').innerHTML = thumb(ref);
+          }, false);
+        });
+        bindEditor(m, bn, function () { saveItem('banners', bn, function () { reloadCrud(opts); }); });
+      }
+    };
+    crudList(opts);
   }
 
   function renderProvinces() {
@@ -1387,7 +1507,8 @@
           ? '<p style="color:var(--text2);font-size:0.87em;margin-bottom:14px">با زدن دکمه، مرورگر از شما مسیر ذخیره روی دستگاه را می‌پرسد. اگر پوشه‌ای با همین نام وجود داشته باشد، به صورت خودکار شماره‌گذاری می‌شود (azadi_network_Bac_1 و بالاتر). اگر اینترنت قطع شود، بکاپ از همان‌جا قابل ادامه است.'
           : '<p style="color:var(--text2);font-size:0.87em;margin-bottom:14px">مرورگر شما از انتخاب پوشه پشتیبانی نمی‌کند؛ بکاپ به صورت یک فایل کامل دانلود می‌شود. برای انتخاب مسیر و بکاپ قابل ادامه، از مرورگر Chrome یا Edge استفاده کنید.') + '</p>' +
         '<div class="page-head-actions">' +
-        '<button class="btn btn-primary" data-bkp-start>بکاپ کامل</button>' +
+        '<button class="btn btn-primary" data-bkp-bak>دانلود فایل .bak کامل</button>' +
+        '<button class="btn btn-ghost" data-bkp-start>بکاپ پوشه‌ای / JSON</button>' +
         (pending ? '<button class="btn btn-ghost" data-bkp-clearstate>حذف وضعیت بکاپ ناتمام</button>' : '') +
         '</div>' +
         '<div class="progress-wrap" data-bkp-prog hidden>' +
@@ -1400,6 +1521,14 @@
         renderBackup();
       });
 
+      root.querySelector('[data-bkp-bak]').addEventListener('click', function () {
+        confirmDialog('دانلود بکاپ .bak',
+          'یک فایل کامل شامل متن، عکس و ویدیو دانلود می‌شود. حجم تقریبی: ' + fmtBytes(man.totalSize),
+          'دانلود').then(function (ok) {
+          if (!ok) return;
+          downloadFullBak();
+        });
+      });
       root.querySelector('[data-bkp-start]').addEventListener('click', function () {
         var name = (root.querySelector('[data-bkp-name]').value.trim() || 'azadi_network_Bac').replace(/[^a-zA-Z0-9_\-\u0600-\u06FF]/g, '_');
         confirmDialog('شروع بکاپ کامل',
@@ -1412,6 +1541,25 @@
       });
     }).catch(function () {
       root.innerHTML = '<div style="color:var(--danger)">خطا در دریافت اطلاعات بکاپ</div>';
+    });
+  }
+
+  function downloadFullBak() {
+    bkpProgress(10, 'در حال ساخت فایل .bak ...');
+    fetch('/api/admin/backup/full', { headers: { 'X-CSRF': csrf } }).then(function (r) {
+      if (!r.ok) throw new Error('backup_failed');
+      return r.blob();
+    }).then(function (blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'azadi_network.bak';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+      bkpProgress(100, 'فایل .bak دانلود شد');
+      toast('فایل بکاپ .bak دانلود شد', 'ok');
+    }).catch(function () {
+      toast('خطا در دانلود بکاپ', 'err');
     });
   }
 
@@ -1566,11 +1714,11 @@
   function renderRestore() {
     layoutShell(pageHead('بازگردانی بکاپ', 'بازگردانی کامل و دقیق تمام محتوا، عکس‌ها، ویدیوها و تنظیمات از بکاپ قبلی') +
       '<div class="card">' +
-      '<p style="color:var(--text2);font-size:0.9em;margin-bottom:16px">پوشه بکاپ (شامل azadi_backup.json و پوشه uploads) یا فایل بکاپ تکی (json.) را انتخاب کنید. همه چیز دقیقا سر جای خود بازگردانده می‌شود.</p>' +
+      '<p style="color:var(--text2);font-size:0.9em;margin-bottom:16px">فایل کامل .bak (متن + عکس + ویدیو)، پوشه بکاپ، یا فایل JSON قدیمی را انتخاب کنید. همه چیز دقیقا سر جای خود بازگردانده می‌شود.</p>' +
       '<div class="page-head-actions" style="margin-bottom:16px">' +
-      (typeof window.showDirectoryPicker === 'function' ? '<button class="btn btn-primary" data-rst-folder>انتخاب پوشه بکاپ</button>' : '') +
-      '<button class="btn btn-ghost" data-rst-file>انتخاب فایل بکاپ (json.)</button>' +
-      '<input type="file" hidden accept="application/json,.json" data-rst-input></div>' +
+      (typeof window.showDirectoryPicker === 'function' ? '<button class="btn btn-ghost" data-rst-folder>انتخاب پوشه بکاپ</button>' : '') +
+      '<button class="btn btn-primary" data-rst-file>انتخاب فایل .bak یا JSON</button>' +
+      '<input type="file" hidden accept=".bak,.json,application/octet-stream,application/json" data-rst-input></div>' +
       '<div class="progress-wrap" data-bkp-prog hidden>' +
       '<div class="progress-track"><div class="progress-fill" style="width:0%"></div></div>' +
       '<div class="progress-label"><span data-bkp-status></span><span data-bkp-pct>0%</span></div></div>' +
@@ -1662,7 +1810,21 @@
 
   function restoreFromFile(file) {
     bkpProgress(5, 'خواندن فایل بکاپ...');
-    file.text().then(function (txt) {
+    file.arrayBuffer().then(function (ab) {
+      var buf = new Uint8Array(ab);
+      var isBak = buf.length >= 4 && buf[0] === 0x41 && buf[1] === 0x5A && buf[2] === 0x42 && buf[3] === 0x4B;
+      if (isBak || /\.bak$/i.test(file.name || '')) {
+        bkpProgress(40, 'بازگردانی فایل .bak ...');
+        return fetch('/api/admin/restore/bak', {
+          method: 'POST',
+          headers: { 'X-CSRF': csrf, 'Content-Type': 'application/octet-stream' },
+          body: ab
+        }).then(function (r) {
+          if (!r.ok) throw new Error('bad_backup');
+          return r.json();
+        });
+      }
+      var txt = new TextDecoder('utf-8').decode(buf);
       var data = JSON.parse(txt);
       return api('POST', '/api/admin/restore/begin', {}).then(function (r) {
         var rid = r.rid;
@@ -1782,6 +1944,7 @@
     else if (view === 'stories') renderStories();
     else if (view === 'services') renderServices();
     else if (view === 'products') renderProducts();
+    else if (view === 'banners') renderBanners();
     else if (view === 'provinces') renderProvinces();
     else if (view === 'articles') renderArticles();
     else if (view === 'portfolio') renderPortfolio();

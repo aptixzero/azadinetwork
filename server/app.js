@@ -35,7 +35,7 @@ const MIME = {
   '.mov': 'video/quicktime'
 };
 
-const PUBLIC_ROUTES = ['/', '/shop', '/portfolio', '/articles', '/contact', '/saved', '/search'];
+const PUBLIC_ROUTES = ['/', '/shop', '/portfolio', '/articles', '/contact', '/saved', '/search', '/product'];
 
 function send(res, code, type, body, extra) {
   var headers = { 'Content-Type': type };
