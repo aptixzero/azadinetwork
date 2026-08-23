@@ -797,26 +797,37 @@
   function bindAdRail() {
     var rail = document.querySelector('[data-ad-rail]');
     if (!rail) return;
-    var down = false, startX = 0, lastX = 0, moved = false;
+    var down = false, startX = 0, lastX = 0, moved = false, capId = null;
     rail.addEventListener('pointerdown', function (e) {
       if (e.pointerType !== 'mouse' || e.button !== 0) return;
       down = true;
       moved = false;
       startX = e.clientX;
       lastX = e.clientX;
-      try { rail.setPointerCapture(e.pointerId); } catch (err) {}
+      capId = null;
     });
     rail.addEventListener('pointermove', function (e) {
       if (!down) return;
-      if (Math.abs(e.clientX - startX) > 6) moved = true;
+      if (!moved && Math.abs(e.clientX - startX) > 12) {
+        moved = true;
+        try { rail.setPointerCapture(e.pointerId); capId = e.pointerId; } catch (err) {}
+      }
+      if (!moved) return;
       rail.scrollBy({ left: -(e.clientX - lastX), top: 0 });
       lastX = e.clientX;
     });
-    function endDrag() { down = false; }
+    function endDrag(e) {
+      down = false;
+      if (capId != null) {
+        try { rail.releasePointerCapture(capId); } catch (err) {}
+        capId = null;
+      }
+    }
     rail.addEventListener('pointerup', endDrag);
     rail.addEventListener('pointercancel', endDrag);
     rail.addEventListener('click', function (e) {
-      if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; }
+      if (moved) { e.preventDefault(); e.stopPropagation(); }
+      moved = false;
     }, true);
   }
 

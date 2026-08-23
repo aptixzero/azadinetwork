@@ -467,6 +467,7 @@ main { position: relative; z-index: 1; }
   transition: all 0.25s;
   border: 1px solid transparent;
 }
+.btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 .btn-primary {
   background: linear-gradient(120deg, var(--accent), var(--accent2));
   color: #fff;
@@ -1657,9 +1658,8 @@ body[data-theme="light"] .hud-b { color:#087447; }
   flex-direction: column;
   gap: 2px;
   padding: 12px 16px 14px;
-  background: linear-gradient(180deg, transparent, rgba(4,8,16,.88));
-  position: absolute;
-  right: 0; left: 0; bottom: 0;
+  background: rgba(4, 8, 16, 0.55);
+  position: static;
   color: #e8f6ff;
   direction: rtl;
   text-align: right;
